@@ -8,8 +8,11 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/themes/dark.css">
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 
@@ -158,6 +161,26 @@
             .catch(() => {
                 document.getElementById('exchange-rates').innerHTML = '<span>Unable to load</span>';
             });
+
+        // Initialize date pickers with DD MM YY format
+        document.querySelectorAll('input[type="date"]').forEach(input => {
+            const currentValue = input.value;
+            input.type = 'text';
+            input.classList.add('date-picker');
+            flatpickr(input, {
+                dateFormat: 'd M y',
+                altInput: true,
+                altFormat: 'D d M y',
+                defaultDate: currentValue || null,
+                theme: document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark',
+                onChange: function (selectedDates, dateStr, instance) {
+                    // Store ISO format in a hidden field or data attribute
+                    if (selectedDates[0]) {
+                        instance.element.dataset.isoDate = selectedDates[0].toISOString().split('T')[0];
+                    }
+                }
+            });
+        });
     </script>
     {% block scripts %}{% endblock %}
 </body>
