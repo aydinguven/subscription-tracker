@@ -1,0 +1,54 @@
+{% extends 'base.html' %}
+
+{% block title %}Categories - Subscription Tracker{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Categories</h1>
+    <div class="header-actions">
+        <a href="{{ url_for('categories.add') }}" class="btn btn-primary">
+            <i data-lucide="plus"></i>
+            Add Category
+        </a>
+    </div>
+</div>
+
+<div class="categories-grid">
+    {% if categories %}
+    {% for cat in categories %}
+    <div class="category-card" style="border-left-color: {{ cat.color }};">
+        <div class="category-icon" style="background: {{ cat.color }}20; color: {{ cat.color }};">
+            <i data-lucide="{{ cat.icon }}"></i>
+        </div>
+        <div class="category-info">
+            <h3>{{ cat.name }}</h3>
+            <span class="category-count">{{ cat.subscriptions.count() }} subscriptions</span>
+        </div>
+        <div class="category-actions">
+            <a href="{{ url_for('categories.edit', id=cat.id) }}" class="btn btn-sm btn-secondary">
+                <i data-lucide="pencil"></i>
+            </a>
+            <form action="{{ url_for('categories.delete', id=cat.id) }}" method="POST" style="display: inline;"
+                onsubmit="return confirm('Delete {{ cat.name }}? Subscriptions will be unlinked.');">
+                <button type="submit" class="btn btn-sm btn-danger">
+                    <i data-lucide="trash-2"></i>
+                </button>
+            </form>
+        </div>
+    </div>
+    {% endfor %}
+    {% else %}
+    <div class="empty-state-card">
+        <i data-lucide="tags"></i>
+        <p>No categories yet</p>
+        <a href="{{ url_for('categories.add') }}" class="btn btn-primary">Add your first category</a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    lucide.createIcons();
+</script>
+{% endblock %}

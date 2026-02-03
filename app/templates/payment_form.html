@@ -1,0 +1,142 @@
+{% extends 'base.html' %}
+
+{% block title %}Add Payment - Subscription Tracker{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <a href="{{ url_for('payments.index') }}" class="back-link">
+        <i data-lucide="arrow-left"></i>
+        Back to Payments
+    </a>
+    <h1>{{ action }} Payment</h1>
+</div>
+
+<div class="card form-card">
+    <form method="POST" class="form">
+        <div class="form-grid">
+            <div class="form-group">
+                <label for="subscription_id">Subscription *</label>
+                <select id="subscription_id" name="subscription_id" required>
+                    <option value="">Select Subscription</option>
+                    {% for sub in subscriptions %}
+                    <option value="{{ sub.id }}" data-amount="{{ sub.amount }}" data-currency="{{ sub.currency }}"
+                        data-variable="{{ 'true' if sub.is_variable else 'false' }}" {% if payment and
+                        payment.subscription_id==sub.id %}selected{% endif %}>
+                        {{ sub.name }}{% if sub.is_variable %} (Variable){% endif %}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="paid_date">Paid Date *</label>
+                <input type="date" id="paid_date" name="paid_date" required
+                    value="{{ payment.paid_date.isoformat() if payment else '' }}">
+            </div>
+
+            <div class="form-group">
+                <label for="original_amount">Normal Price</label>
+                <input type="number" id="original_amount" name="original_amount" step="0.01" min="0"
+                    value="{{ payment.original_amount if payment and payment.original_amount else '' }}"
+                    placeholder="Regular price">
+                <small style="color: var(--text-muted);">Leave blank if no discount</small>
+            </div>
+
+            <div class="form-group">
+                <label for="amount">Amount Paid *</label>
+                <input type="number" id="amount" name="amount" required step="0.01" min="0"
+                    value="{{ payment.amount if payment else '' }}" placeholder="0.00">
+                <small id="discount-info" style="color: var(--success); display: none;"></small>
+            </div>
+
+            <div class="form-group">
+                <label for="currency">Currency</label>
+                <select id="currency" name="currency">
+                    <option value="TRY" {% if payment and payment.currency=='TRY' %}selected{% endif %}>TRY (₺)</option>
+                    <option value="USD" {% if payment and payment.currency=='USD' %}selected{% endif %}>USD ($)</option>
+                    <option value="EUR" {% if payment and payment.currency=='EUR' %}selected{% endif %}>EUR (€)</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="payment_method_id">Payment Method</label>
+                <select id="payment_method_id" name="payment_method_id">
+                    <option value="">No Payment Method</option>
+                    {% for method in payment_methods %}
+                    <option value="{{ method.id }}" {% if payment and payment.payment_method_id==method.id %}selected{%
+                        endif %}>
+                        {{ method.display_name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-group full-width">
+                <label for="notes">Notes (optional)</label>
+                <textarea id="notes" name="notes" rows="3"
+                    placeholder="Any additional notes...">{{ payment.notes if payment else '' }}</textarea>
+            </div>
+        </div>
+
+        <div class="form-actions">
+            <a href="{{ url_for('payments.index') }}" class="btn btn-secondary">Cancel</a>
+            <button type="submit" class="btn btn-primary">
+                <i data-lucide="save"></i>
+                {{ action }} Payment
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    lucide.createIcons();
+
+    // Auto-fill amount and currency when subscription is selected
+    document.getElementById('subscription_id').addEventListener('change', function () {
+        const option = this.options[this.selectedIndex];
+        if (option.value) {
+            const amount = option.dataset.amount;
+            const isVariable = option.dataset.variable === 'true';
+
+            document.getElementById('currency').value = option.dataset.currency;
+
+            if (isVariable) {
+                // For variable subscriptions, set as original amount (estimated)
+                document.getElementById('original_amount').value = amount;
+                document.getElementById('amount').value = '';
+                document.getElementById('amount').focus();
+            } else {
+                // For fixed subscriptions, set both to same value
+                document.getElementById('original_amount').value = amount;
+                document.getElementById('amount').value = amount;
+            }
+        }
+    });
+
+    // Calculate and show discount
+    function updateDiscount() {
+        const original = parseFloat(document.getElementById('original_amount').value) || 0;
+        const paid = parseFloat(document.getElementById('amount').value) || 0;
+        const discountInfo = document.getElementById('discount-info');
+
+        if (original > 0 && paid > 0 && original > paid) {
+            const savings = original - paid;
+            const percent = ((savings / original) * 100).toFixed(1);
+            discountInfo.textContent = `💰 You saved ${savings.toFixed(2)} (${percent}% discount)`;
+            discountInfo.style.display = 'block';
+        } else {
+            discountInfo.style.display = 'none';
+        }
+    }
+
+    document.getElementById('original_amount').addEventListener('input', updateDiscount);
+    document.getElementById('amount').addEventListener('input', updateDiscount);
+
+    // Set default date to today
+    if (!document.getElementById('paid_date').value) {
+        document.getElementById('paid_date').value = new Date().toISOString().split('T')[0];
+    }
+</script>
+{% endblock %}

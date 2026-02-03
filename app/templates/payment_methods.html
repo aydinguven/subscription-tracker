@@ -1,0 +1,77 @@
+{% extends 'base.html' %}
+
+{% block title %}Payment Methods - Subscription Tracker{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Payment Methods</h1>
+    <div class="header-actions">
+        <a href="{{ url_for('payment_methods.add') }}" class="btn btn-primary">
+            <i data-lucide="plus"></i>
+            Add Method
+        </a>
+    </div>
+</div>
+
+<div class="methods-grid">
+    {% if methods %}
+    {% for method in methods %}
+    <div class="method-card" style="border-left-color: {{ method.color }};">
+        <div class="method-icon" style="background: {{ method.color }}20; color: {{ method.color }};">
+            <i data-lucide="{{ method.icon }}"></i>
+        </div>
+        <div class="method-info">
+            <div class="method-header">
+                <h3>{{ method.name }}</h3>
+                {% if method.is_default %}
+                <span class="default-badge">Default</span>
+                {% endif %}
+            </div>
+            {% if method.identifier %}
+            <span class="method-identifier">{{ method.identifier }}</span>
+            {% endif %}
+            <span class="method-type">
+                {% for type_id, type_name, icon in method_types %}
+                {% if type_id == method.method_type %}{{ type_name }}{% endif %}
+                {% endfor %}
+            </span>
+            <span class="method-count">
+                {{ method.subscriptions.count() }} subscriptions · {{ method.payments.count() }} payments
+            </span>
+        </div>
+        <div class="method-actions">
+            {% if not method.is_default %}
+            <form action="{{ url_for('payment_methods.set_default', id=method.id) }}" method="POST"
+                style="display: inline;">
+                <button type="submit" class="btn btn-sm btn-secondary" title="Set as Default">
+                    <i data-lucide="star"></i>
+                </button>
+            </form>
+            {% endif %}
+            <a href="{{ url_for('payment_methods.edit', id=method.id) }}" class="btn btn-sm btn-secondary" title="Edit">
+                <i data-lucide="pencil"></i>
+            </a>
+            <form action="{{ url_for('payment_methods.delete', id=method.id) }}" method="POST" style="display: inline;"
+                onsubmit="return confirm('Delete {{ method.name }}? Linked subscriptions and payments will be unlinked.');">
+                <button type="submit" class="btn btn-sm btn-danger" title="Delete">
+                    <i data-lucide="trash-2"></i>
+                </button>
+            </form>
+        </div>
+    </div>
+    {% endfor %}
+    {% else %}
+    <div class="empty-state-card">
+        <i data-lucide="credit-card"></i>
+        <p>No payment methods yet</p>
+        <a href="{{ url_for('payment_methods.add') }}" class="btn btn-primary">Add your first payment method</a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    lucide.createIcons();
+</script>
+{% endblock %}

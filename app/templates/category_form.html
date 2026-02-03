@@ -1,0 +1,70 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ action }} Category - Subscription Tracker{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <a href="{{ url_for('categories.index') }}" class="back-link">
+        <i data-lucide="arrow-left"></i>
+        Back to Categories
+    </a>
+    <h1>{{ action }} Category</h1>
+</div>
+
+<div class="card form-card">
+    <form method="POST" class="form">
+        <div class="form-grid">
+            <div class="form-group">
+                <label for="name">Name *</label>
+                <input type="text" id="name" name="name" required value="{{ category.name if category else '' }}"
+                    placeholder="e.g., Streaming, Software">
+            </div>
+
+            <div class="form-group">
+                <label for="color">Color</label>
+                <div class="color-input-wrapper">
+                    <input type="color" id="color" name="color" value="{{ category.color if category else '#6366f1' }}">
+                    <span class="color-preview" id="colorPreview">{{ category.color if category else '#6366f1' }}</span>
+                </div>
+            </div>
+
+            <div class="form-group full-width">
+                <label>Icon</label>
+                <div class="icon-grid">
+                    {% set icons = ['tv', 'code', 'gamepad-2', 'cloud', 'music', 'box', 'film', 'book', 'phone', 'mail',
+                    'shield', 'zap', 'globe', 'database', 'server', 'key', 'heart', 'star', 'home', 'car'] %}
+                    {% for icon in icons %}
+                    <label class="icon-option">
+                        <input type="radio" name="icon" value="{{ icon }}" {% if category and category.icon==icon
+                            %}checked{% elif not category and icon=='box' %}checked{% endif %}>
+                        <div class="icon-box">
+                            <i data-lucide="{{ icon }}"></i>
+                        </div>
+                    </label>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <div class="form-actions">
+            <a href="{{ url_for('categories.index') }}" class="btn btn-secondary">Cancel</a>
+            <button type="submit" class="btn btn-primary">
+                <i data-lucide="save"></i>
+                {{ action }} Category
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    lucide.createIcons();
+
+    // Update color preview
+    document.getElementById('color').addEventListener('input', function () {
+        document.getElementById('colorPreview').textContent = this.value;
+        document.getElementById('colorPreview').style.color = this.value;
+    });
+</script>
+{% endblock %}

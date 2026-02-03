@@ -1,0 +1,194 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ year }} Yearly Report - Subscription Tracker{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Yearly Report</h1>
+    <div class="header-actions">
+        <form method="GET" class="year-selector">
+            <select name="year" onchange="this.form.submit()">
+                {% for y in available_years %}
+                <option value="{{ y }}" {% if year==y %}selected{% endif %}>{{ y }}</option>
+                {% endfor %}
+            </select>
+        </form>
+    </div>
+</div>
+
+<!-- Grand Total -->
+<div class="grand-total-card">
+    <span class="grand-total-label">Total Spent in {{ year }}</span>
+    <span class="grand-total-value">₺{{ "%.2f"|format(grand_total) }}</span>
+</div>
+
+<div class="report-grid">
+    <!-- Monthly Breakdown -->
+    <div class="card chart-card">
+        <div class="card-header">
+            <h3>Monthly Breakdown</h3>
+        </div>
+        <div class="card-body">
+            <canvas id="monthlyChart"></canvas>
+        </div>
+    </div>
+
+    <!-- Category Breakdown -->
+    <div class="card">
+        <div class="card-header">
+            <h3>By Category</h3>
+        </div>
+        <div class="card-body">
+            <canvas id="categoryChart"></canvas>
+        </div>
+    </div>
+
+    <!-- Monthly Table -->
+    <div class="card full-width">
+        <div class="card-header">
+            <h3>Monthly Details</h3>
+        </div>
+        <div class="table-responsive">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Month</th>
+                        <th>TRY (₺)</th>
+                        <th>USD ($)</th>
+                        <th>EUR (€)</th>
+                        <th>Total (₺)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% set month_names = ['', 'January', 'February', 'March', 'April', 'May', 'June', 'July', 'August',
+                    'September', 'October', 'November', 'December'] %}
+                    {% for month in range(1, 13) %}
+                    {% set data = monthly_totals[month] %}
+                    <tr class="{% if data.total_try == 0 %}row-empty{% endif %}">
+                        <td>{{ month_names[month] }}</td>
+                        <td>{% if data.TRY %}₺{{ "%.2f"|format(data.TRY) }}{% else %}—{% endif %}</td>
+                        <td>{% if data.USD %}${{ "%.2f"|format(data.USD) }}{% else %}—{% endif %}</td>
+                        <td>{% if data.EUR %}€{{ "%.2f"|format(data.EUR) }}{% else %}—{% endif %}</td>
+                        <td><strong>₺{{ "%.2f"|format(data.total_try) }}</strong></td>
+                    </tr>
+                    {% endfor %}
+                    <tr class="total-row">
+                        <td><strong>Total</strong></td>
+                        <td><strong>₺{{ "%.2f"|format(monthly_totals.values()|map(attribute='TRY')|sum) }}</strong></td>
+                        <td><strong>${{ "%.2f"|format(monthly_totals.values()|map(attribute='USD')|sum) }}</strong></td>
+                        <td><strong>€{{ "%.2f"|format(monthly_totals.values()|map(attribute='EUR')|sum) }}</strong></td>
+                        <td><strong>₺{{ "%.2f"|format(grand_total) }}</strong></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Category Table -->
+    <div class="card full-width">
+        <div class="card-header">
+            <h3>Category Details</h3>
+        </div>
+        <div class="table-responsive">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Category</th>
+                        <th>Total (₺)</th>
+                        <th>% of Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for cat_name, data in category_totals.items()|sort(attribute='1.total', reverse=true) %}
+                    <tr>
+                        <td>
+                            <span class="category-badge"
+                                style="background: {{ data.color }}20; color: {{ data.color }};">
+                                {{ cat_name }}
+                            </span>
+                        </td>
+                        <td>₺{{ "%.2f"|format(data.total) }}</td>
+                        <td>{{ "%.1f"|format((data.total / grand_total * 100) if grand_total else 0) }}%</td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="3" class="empty-table">No payments recorded</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    lucide.createIcons();
+
+    // Monthly chart data
+    const monthlyData = {{ monthly_totals| tojson | safe }};
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const monthlyValues = months.map((_, i) => monthlyData[i + 1]?.total_try || 0);
+
+    new Chart(document.getElementById('monthlyChart'), {
+        type: 'bar',
+        data: {
+            labels: months,
+            datasets: [{
+                label: 'Spending (₺)',
+                data: monthlyValues,
+                backgroundColor: '#6366f1',
+                borderRadius: 4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false }
+            },
+            scales: {
+                x: {
+                    grid: { color: 'rgba(255,255,255,0.05)' },
+                    ticks: { color: '#9ca3af' }
+                },
+                y: {
+                    grid: { color: 'rgba(255,255,255,0.05)' },
+                    ticks: { color: '#9ca3af' }
+                }
+            }
+        }
+    });
+
+    // Category chart
+    const categoryData = {{ category_totals| tojson | safe }};
+    const categoryLabels = Object.keys(categoryData);
+    const categoryValues = categoryLabels.map(k => categoryData[k].total);
+    const categoryColors = categoryLabels.map(k => categoryData[k].color);
+
+    if (categoryLabels.length > 0) {
+        new Chart(document.getElementById('categoryChart'), {
+            type: 'doughnut',
+            data: {
+                labels: categoryLabels,
+                datasets: [{
+                    data: categoryValues,
+                    backgroundColor: categoryColors,
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: { color: '#9ca3af', padding: 15, font: { size: 12 } }
+                    }
+                }
+            }
+        });
+    }
+</script>
+{% endblock %}

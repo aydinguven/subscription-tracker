@@ -1,0 +1,249 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ action }} Subscription - Subscription Tracker{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <a href="{{ url_for('subscriptions.index') }}" class="back-link">
+        <i data-lucide="arrow-left"></i>
+        Back to Subscriptions
+    </a>
+    <h1>{{ action }} Subscription</h1>
+</div>
+
+<div class="card form-card">
+    <form method="POST" class="form">
+        <div class="form-grid">
+            <div class="form-group">
+                <label for="name">Name *</label>
+                <input type="text" id="name" name="name" required
+                    value="{{ subscription.name if subscription else '' }}" placeholder="e.g., Netflix, Spotify">
+            </div>
+
+            <div class="form-group">
+                <label for="category_id">Category</label>
+                <select id="category_id" name="category_id">
+                    <option value="">No Category</option>
+                    {% for cat in categories %}
+                    <option value="{{ cat.id }}" {% if subscription and subscription.category_id==cat.id %}selected{%
+                        endif %}>
+                        {{ cat.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="amount">Amount <span id="amount-label">*</span></label>
+                <input type="number" id="amount" name="amount" required step="0.01" min="0"
+                    value="{{ subscription.amount if subscription else '' }}" placeholder="0.00">
+                <small id="amount-hint" style="color: var(--text-muted); display: none;">Estimated amount for
+                    budgeting</small>
+            </div>
+
+            <div class="form-group">
+                <label for="currency">Currency</label>
+                <select id="currency" name="currency">
+                    <option value="TRY" {% if subscription and subscription.currency=='TRY' %}selected{% endif %}>TRY
+                        (₺)</option>
+                    <option value="USD" {% if subscription and subscription.currency=='USD' %}selected{% endif %}>USD
+                        ($)</option>
+                    <option value="EUR" {% if subscription and subscription.currency=='EUR' %}selected{% endif %}>EUR
+                        (€)</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="billing_cycle">Billing Cycle</label>
+                <select id="billing_cycle" name="billing_cycle">
+                    <option value="monthly" {% if subscription and subscription.billing_cycle=='monthly' %}selected{%
+                        endif %}>Monthly</option>
+                    <option value="yearly" {% if subscription and subscription.billing_cycle=='yearly' %}selected{%
+                        endif %}>Yearly</option>
+                    <option value="weekly" {% if subscription and subscription.billing_cycle=='weekly' %}selected{%
+                        endif %}>Weekly</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="next_due_date">Next Due Date</label>
+                <input type="date" id="next_due_date" name="next_due_date"
+                    value="{{ subscription.next_due_date.isoformat() if subscription and subscription.next_due_date else '' }}">
+            </div>
+
+            <div class="form-group">
+                <label for="payment_method_id">Payment Method</label>
+                <select id="payment_method_id" name="payment_method_id">
+                    <option value="">No Payment Method</option>
+                    {% for method in payment_methods %}
+                    <option value="{{ method.id }}" {% if subscription and subscription.payment_method_id==method.id
+                        %}selected{% endif %}>
+                        {{ method.display_name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label class="checkbox-label">
+                    <input type="checkbox" name="is_variable" id="is_variable" {% if subscription and
+                        subscription.is_variable %}checked{% endif %}>
+                    <span>Variable amount (utilities)</span>
+                </label>
+            </div>
+
+            <div class="form-group full-width">
+                <label>Icon</label>
+                <div class="icon-grid" id="icon-grid">
+                    {% set icons = ['receipt', 'tv', 'music', 'cloud', 'gamepad-2', 'code', 'smartphone', 'video',
+                    'film', 'headphones', 'wifi', 'zap', 'droplet', 'flame', 'home', 'car', 'heart', 'shield', 'book',
+                    'graduation-cap', 'dumbbell', 'utensils', 'plane', 'building', 'store'] %}
+                    {% for icon in icons %}
+                    <label class="icon-option">
+                        <input type="radio" name="icon" value="{{ icon }}" {% if subscription and
+                            subscription.icon==icon %}checked{% elif not subscription and icon=='receipt' %}checked{%
+                            endif %}>
+                        <div class="icon-box">
+                            <i data-lucide="{{ icon }}"></i>
+                        </div>
+                    </label>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="form-group full-width">
+                <label for="url">URL (optional)</label>
+                <input type="url" id="url" name="url" value="{{ subscription.url if subscription else '' }}"
+                    placeholder="https://...">
+            </div>
+
+            <div class="form-group full-width">
+                <label for="notes">Notes (optional)</label>
+                <textarea id="notes" name="notes" rows="3"
+                    placeholder="Any additional notes...">{{ subscription.notes if subscription else '' }}</textarea>
+            </div>
+
+            {% if subscription %}
+            <div class="form-group">
+                <label class="checkbox-label">
+                    <input type="checkbox" name="is_active" {% if subscription.is_active %}checked{% endif %}>
+                    <span>Active</span>
+                </label>
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="form-actions">
+            <a href="{{ url_for('subscriptions.index') }}" class="btn btn-secondary">Cancel</a>
+            <button type="submit" class="btn btn-primary">
+                <i data-lucide="save"></i>
+                {{ action }} Subscription
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    lucide.createIcons();
+
+    // Icon mapping for auto-detection
+    const iconMap = {
+        // Streaming
+        'netflix': 'tv', 'disney': 'tv', 'hulu': 'tv', 'hbo': 'tv', 'prime video': 'tv',
+        'amazon prime': 'tv', 'apple tv': 'tv', 'youtube': 'video', 'twitch': 'video',
+        'crunchyroll': 'film', 'plex': 'film',
+
+        // Music
+        'spotify': 'music', 'apple music': 'music', 'youtube music': 'music',
+        'deezer': 'music', 'tidal': 'music', 'soundcloud': 'music', 'audible': 'headphones',
+
+        // Cloud & Software
+        'aws': 'cloud', 'azure': 'cloud', 'google cloud': 'cloud', 'dropbox': 'cloud',
+        'icloud': 'cloud', 'onedrive': 'cloud', 'google drive': 'cloud', 'backblaze': 'cloud',
+        'github': 'code', 'gitlab': 'code', 'jetbrains': 'code', 'vscode': 'code',
+        'notion': 'book', 'evernote': 'book', 'todoist': 'book',
+        'adobe': 'code', 'figma': 'code', 'canva': 'code', 'photoshop': 'code',
+        'microsoft 365': 'code', 'office': 'code',
+
+        // Gaming
+        'xbox': 'gamepad-2', 'playstation': 'gamepad-2', 'steam': 'gamepad-2',
+        'nintendo': 'gamepad-2', 'ea play': 'gamepad-2', 'ubisoft': 'gamepad-2',
+        'game pass': 'gamepad-2', 'ps plus': 'gamepad-2',
+
+        // Mobile & Communication
+        'phone': 'smartphone', 'mobile': 'smartphone', 'vodafone': 'smartphone',
+        'turkcell': 'smartphone', 't-mobile': 'smartphone', 'at&t': 'smartphone',
+        'verizon': 'smartphone', 'whatsapp': 'smartphone', 'zoom': 'video',
+        'slack': 'smartphone', 'discord': 'headphones',
+
+        // Utilities
+        'electric': 'zap', 'electricity': 'zap', 'power': 'zap', 'enerjisa': 'zap',
+        'water': 'droplet', 'su': 'droplet', 'iski': 'droplet',
+        'gas': 'flame', 'natural gas': 'flame', 'igdas': 'flame', 'heating': 'flame',
+        'internet': 'wifi', 'fiber': 'wifi', 'broadband': 'wifi', 'turk telekom': 'wifi',
+        'superonline': 'wifi',
+
+        // Housing & Transport
+        'rent': 'home', 'kira': 'home', 'mortgage': 'home', 'apartment': 'building',
+        'car': 'car', 'araba': 'car', 'insurance': 'shield', 'sigorta': 'shield',
+
+        // Health & Fitness
+        'gym': 'dumbbell', 'fitness': 'dumbbell', 'peloton': 'dumbbell',
+        'health': 'heart', 'medical': 'heart', 'therapy': 'heart',
+
+        // Food & Delivery
+        'yemek': 'utensils', 'food': 'utensils', 'doordash': 'utensils',
+        'uber eats': 'utensils', 'getir': 'utensils', 'trendyol': 'store',
+
+        // Education
+        'udemy': 'graduation-cap', 'coursera': 'graduation-cap', 'skillshare': 'graduation-cap',
+        'linkedin learning': 'graduation-cap', 'masterclass': 'graduation-cap',
+
+        // Travel
+        'airline': 'plane', 'miles': 'plane', 'hotel': 'building'
+    };
+
+    // Auto-detect icon based on name
+    document.getElementById('name').addEventListener('input', function () {
+        const name = this.value.toLowerCase().trim();
+        let matchedIcon = null;
+
+        // Check for matches
+        for (const [keyword, icon] of Object.entries(iconMap)) {
+            if (name.includes(keyword)) {
+                matchedIcon = icon;
+                break;
+            }
+        }
+
+        if (matchedIcon) {
+            const iconRadio = document.querySelector(`input[name="icon"][value="${matchedIcon}"]`);
+            if (iconRadio) {
+                iconRadio.checked = true;
+            }
+        }
+    });
+
+    // Toggle variable amount hints
+    document.getElementById('is_variable').addEventListener('change', function () {
+        const amountLabel = document.getElementById('amount-label');
+        const amountHint = document.getElementById('amount-hint');
+
+        if (this.checked) {
+            amountLabel.textContent = '(estimated)';
+            amountHint.style.display = 'block';
+        } else {
+            amountLabel.textContent = '*';
+            amountHint.style.display = 'none';
+        }
+    });
+
+    // Initialize on page load
+    if (document.getElementById('is_variable').checked) {
+        document.getElementById('amount-label').textContent = '(estimated)';
+        document.getElementById('amount-hint').style.display = 'block';
+    }
+</script>
+{% endblock %}

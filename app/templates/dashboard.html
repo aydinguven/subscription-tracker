@@ -1,0 +1,224 @@
+{% extends 'base.html' %}
+
+{% block title %}Dashboard - Subscription Tracker{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Dashboard</h1>
+    <div class="header-actions">
+        <a href="{{ url_for('subscriptions.add') }}" class="btn btn-primary">
+            <i data-lucide="plus"></i>
+            Add Subscription
+        </a>
+    </div>
+</div>
+
+<!-- Summary Cards -->
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-icon" style="background: rgba(99, 102, 241, 0.2); color: #6366f1;">
+            <i data-lucide="repeat"></i>
+        </div>
+        <div class="stat-content">
+            <span class="stat-value">{{ active_count }}</span>
+            <span class="stat-label">Active Subscriptions</span>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon" style="background: rgba(16, 185, 129, 0.2); color: #10b981;">
+            <i data-lucide="wallet"></i>
+        </div>
+        <div class="stat-content">
+            <span class="stat-value">₺{{ "%.2f"|format(monthly_total) }}</span>
+            <span class="stat-label">Monthly Cost</span>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon" style="background: rgba(245, 158, 11, 0.2); color: #f59e0b;">
+            <i data-lucide="calendar"></i>
+        </div>
+        <div class="stat-content">
+            <span class="stat-value">₺{{ "%.2f"|format(yearly_total) }}</span>
+            <span class="stat-label">Paid in {{ current_year }}</span>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon" style="background: rgba(239, 68, 68, 0.2); color: #ef4444;">
+            <i data-lucide="alert-triangle"></i>
+        </div>
+        <div class="stat-content">
+            <span class="stat-value">{{ overdue|length }}</span>
+            <span class="stat-label">Overdue</span>
+        </div>
+    </div>
+</div>
+
+<div class="dashboard-grid">
+    <!-- Spending Chart -->
+    <div class="card chart-card">
+        <div class="card-header">
+            <h3>Monthly Spending</h3>
+        </div>
+        <div class="card-body">
+            <canvas id="spendingChart"></canvas>
+        </div>
+    </div>
+
+    <!-- Category Breakdown -->
+    <div class="card">
+        <div class="card-header">
+            <h3>By Category</h3>
+        </div>
+        <div class="card-body">
+            <canvas id="categoryChart"></canvas>
+        </div>
+    </div>
+
+    <!-- Upcoming Payments -->
+    <div class="card">
+        <div class="card-header">
+            <h3>Upcoming This Week</h3>
+        </div>
+        <div class="card-body">
+            {% if upcoming %}
+            <ul class="upcoming-list">
+                {% for sub in upcoming %}
+                <li class="upcoming-item">
+                    <div class="upcoming-info">
+                        <span class="upcoming-name">{{ sub.name }}</span>
+                        <span class="upcoming-date">
+                            {% if sub.days_until_due == 0 %}
+                            Today
+                            {% elif sub.days_until_due == 1 %}
+                            Tomorrow
+                            {% else %}
+                            {{ sub.next_due_date.strftime('%b %d') }}
+                            {% endif %}
+                        </span>
+                    </div>
+                    <div class="upcoming-amount">
+                        {% if sub.currency == 'TRY' %}₺{% elif sub.currency == 'USD' %}${% else %}€{% endif %}{{
+                        "%.2f"|format(sub.amount) }}
+                    </div>
+                </li>
+                {% endfor %}
+            </ul>
+            {% else %}
+            <p class="empty-state">No payments due this week 🎉</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Overdue -->
+    <div class="card {% if overdue %}card-danger{% endif %}">
+        <div class="card-header">
+            <h3>Overdue Payments</h3>
+        </div>
+        <div class="card-body">
+            {% if overdue %}
+            <ul class="upcoming-list">
+                {% for sub in overdue %}
+                <li class="upcoming-item overdue">
+                    <div class="upcoming-info">
+                        <span class="upcoming-name">{{ sub.name }}</span>
+                        <span class="upcoming-date overdue-date">
+                            {{ (-sub.days_until_due) }} days overdue
+                        </span>
+                    </div>
+                    <form action="{{ url_for('subscriptions.mark_paid', id=sub.id) }}" method="POST"
+                        style="display: inline;">
+                        <button type="submit" class="btn btn-sm btn-success">
+                            <i data-lucide="check"></i>
+                            Pay
+                        </button>
+                    </form>
+                </li>
+                {% endfor %}
+            </ul>
+            {% else %}
+            <p class="empty-state">All caught up! ✓</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Category data
+    const categoryData = {{ category_totals| tojson | safe }};
+    const categoryLabels = Object.keys(categoryData);
+    const categoryValues = categoryLabels.map(k => categoryData[k].total);
+    const categoryColors = categoryLabels.map(k => categoryData[k].color);
+
+    // Category pie chart
+    if (categoryLabels.length > 0) {
+        new Chart(document.getElementById('categoryChart'), {
+            type: 'doughnut',
+            data: {
+                labels: categoryLabels,
+                datasets: [{
+                    data: categoryValues,
+                    backgroundColor: categoryColors,
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: { color: '#9ca3af', padding: 15, font: { size: 12 } }
+                    }
+                }
+            }
+        });
+    }
+
+    // Fetch spending data for chart
+    fetch('/api/stats')
+        .then(r => r.json())
+        .then(data => {
+            const months = data.monthly_spending.map(m => {
+                const [year, month] = m.month.split('-');
+                return new Date(year, month - 1).toLocaleString('en', { month: 'short' });
+            });
+            const values = data.monthly_spending.map(m => m.total);
+
+            new Chart(document.getElementById('spendingChart'), {
+                type: 'line',
+                data: {
+                    labels: months,
+                    datasets: [{
+                        label: 'Spending (₺)',
+                        data: values,
+                        borderColor: '#6366f1',
+                        backgroundColor: 'rgba(99, 102, 241, 0.1)',
+                        fill: true,
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        x: {
+                            grid: { color: 'rgba(255,255,255,0.05)' },
+                            ticks: { color: '#9ca3af' }
+                        },
+                        y: {
+                            grid: { color: 'rgba(255,255,255,0.05)' },
+                            ticks: { color: '#9ca3af' }
+                        }
+                    }
+                }
+            });
+        });
+
+    lucide.createIcons();
+</script>
+{% endblock %}

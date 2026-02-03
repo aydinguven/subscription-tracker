@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Subscription Tracker{% endblock %}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+
+<body>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <i data-lucide="wallet"></i>
+                    <span>SubTracker</span>
+                </div>
+            </div>
+            <nav class="sidebar-nav">
+                <a href="{{ url_for('dashboard.index') }}"
+                    class="nav-item {% if request.endpoint == 'dashboard.index' %}active{% endif %}">
+                    <i data-lucide="layout-dashboard"></i>
+                    <span>Dashboard</span>
+                </a>
+                <a href="{{ url_for('subscriptions.index') }}"
+                    class="nav-item {% if 'subscriptions' in request.endpoint %}active{% endif %}">
+                    <i data-lucide="repeat"></i>
+                    <span>Subscriptions</span>
+                </a>
+                <a href="{{ url_for('payments.index') }}"
+                    class="nav-item {% if request.endpoint == 'payments.index' or request.endpoint == 'payments.add' %}active{% endif %}">
+                    <i data-lucide="credit-card"></i>
+                    <span>Payments</span>
+                </a>
+                <a href="{{ url_for('payments.yearly_report') }}"
+                    class="nav-item {% if request.endpoint == 'payments.yearly_report' %}active{% endif %}">
+                    <i data-lucide="bar-chart-3"></i>
+                    <span>Yearly Report</span>
+                </a>
+                <a href="{{ url_for('categories.index') }}"
+                    class="nav-item {% if 'categories' in request.endpoint %}active{% endif %}">
+                    <i data-lucide="tags"></i>
+                    <span>Categories</span>
+                </a>
+                <a href="{{ url_for('payment_methods.index') }}"
+                    class="nav-item {% if 'payment_methods' in request.endpoint %}active{% endif %}">
+                    <i data-lucide="wallet"></i>
+                    <span>Payment Methods</span>
+                </a>
+            </nav>
+            <div class="sidebar-footer">
+                <button class="theme-toggle" onclick="toggleTheme()">
+                    <i data-lucide="sun" id="theme-icon-light" style="display: none;"></i>
+                    <i data-lucide="moon" id="theme-icon-dark"></i>
+                    <span id="theme-label">Light Mode</span>
+                </button>
+                <div class="exchange-rates">
+                    <span class="rates-label">Exchange Rates</span>
+                    <div class="rates-values" id="exchange-rates">
+                        <span>Loading...</span>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+            {% for category, message in messages %}
+            <div class="alert alert-{{ category }}">
+                <i
+                    data-lucide="{% if category == 'success' %}check-circle{% elif category == 'error' %}alert-circle{% else %}info{% endif %}"></i>
+                <span>{{ message }}</span>
+                <button class="alert-close" onclick="this.parentElement.remove()">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            {% endfor %}
+            {% endif %}
+            {% endwith %}
+
+            {% block content %}{% endblock %}
+        </main>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+    <script>
+        // Theme management
+        function initTheme() {
+            const savedTheme = localStorage.getItem('theme') || 'dark';
+            setTheme(savedTheme);
+        }
+
+        function setTheme(theme) {
+            document.documentElement.setAttribute('data-theme', theme);
+            localStorage.setItem('theme', theme);
+
+            const lightIcon = document.getElementById('theme-icon-light');
+            const darkIcon = document.getElementById('theme-icon-dark');
+            const label = document.getElementById('theme-label');
+
+            if (theme === 'light') {
+                lightIcon.style.display = 'none';
+                darkIcon.style.display = 'block';
+                label.textContent = 'Dark Mode';
+            } else {
+                lightIcon.style.display = 'block';
+                darkIcon.style.display = 'none';
+                label.textContent = 'Light Mode';
+            }
+
+            lucide.createIcons();
+        }
+
+        function toggleTheme() {
+            const currentTheme = document.documentElement.getAttribute('data-theme') || 'dark';
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            setTheme(newTheme);
+        }
+
+        // Initialize theme before page renders
+        initTheme();
+
+        // Initialize Lucide icons
+        lucide.createIcons();
+
+        // Load exchange rates
+        fetch('/api/rates')
+            .then(r => r.json())
+            .then(data => {
+                const ratesEl = document.getElementById('exchange-rates');
+                if (data.rates) {
+                    ratesEl.innerHTML = `
+                        <span>$1 = ₺${data.rates.USD?.toFixed(2) || 'N/A'}</span>
+                        <span>€1 = ₺${data.rates.EUR?.toFixed(2) || 'N/A'}</span>
+                    `;
+                }
+            })
+            .catch(() => {
+                document.getElementById('exchange-rates').innerHTML = '<span>Unable to load</span>';
+            });
+    </script>
+    {% block scripts %}{% endblock %}
+</body>
+
+</html>
