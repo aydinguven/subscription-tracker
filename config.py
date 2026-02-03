@@ -1,20 +1,37 @@
 import os
 
-BASE_DIR = os.path.abspath(os.path.dirname(__file__))
-
 
 class Config:
+    """Application configuration."""
+    
+    # Secret key for session management
     SECRET_KEY = os.environ.get('SECRET_KEY') or 'dev-secret-key-change-in-production'
-    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or \
-        'sqlite:///' + os.path.join(BASE_DIR, 'subscriptions.db')
+    
+    # Database configuration
+    basedir = os.path.abspath(os.path.dirname(__file__))
+    DATABASE_PATH = os.environ.get('DATABASE_PATH') or os.path.join(basedir, 'data', 'subscriptions.db')
+    SQLALCHEMY_DATABASE_URI = f'sqlite:///{DATABASE_PATH}'
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     
-    # Currency settings
-    PRIMARY_CURRENCY = 'TRY'
-    SUPPORTED_CURRENCIES = ['TRY', 'USD', 'EUR']
-    
-    # Exchange rate API (free tier)
-    # Get your free API key at: https://www.exchangerate-api.com/
-    EXCHANGE_RATE_API_KEY = os.environ.get('EXCHANGE_RATE_API_KEY') or ''
-    EXCHANGE_RATE_API_URL = 'https://v6.exchangerate-api.com/v6/{api_key}/latest/{base}'
-    EXCHANGE_RATE_CACHE_HOURS = 24
+    # Ensure data directory exists
+    data_dir = os.path.dirname(DATABASE_PATH)
+    if data_dir and not os.path.exists(data_dir):
+        os.makedirs(data_dir, exist_ok=True)
+
+
+class DevelopmentConfig(Config):
+    """Development configuration."""
+    DEBUG = True
+
+
+class ProductionConfig(Config):
+    """Production configuration."""
+    DEBUG = False
+
+
+# Default to development
+config = {
+    'development': DevelopmentConfig,
+    'production': ProductionConfig,
+    'default': DevelopmentConfig
+}
