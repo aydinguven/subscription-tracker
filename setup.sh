@@ -155,9 +155,9 @@ Type=simple
 User=$SERVICE_USER
 Group=$SERVICE_USER
 WorkingDirectory=$INSTALL_DIR
-Environment="PATH=$INSTALL_DIR/venv/bin"
+Environment="PATH=$INSTALL_DIR/venv/bin:/usr/bin:/bin"
 EnvironmentFile=$INSTALL_DIR/.env
-ExecStart=$INSTALL_DIR/venv/bin/gunicorn --bind 0.0.0.0:$PORT --workers 2 'app:create_app()'
+ExecStart=$INSTALL_DIR/venv/bin/python -m gunicorn --bind 0.0.0.0:$PORT --workers 2 'app:create_app()'
 Restart=always
 RestartSec=5
 
