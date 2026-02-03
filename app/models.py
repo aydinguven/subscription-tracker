@@ -101,6 +101,21 @@ class Subscription(db.Model):
         elif self.billing_cycle == 'yearly':
             self.next_due_date += relativedelta(years=1)
     
+    @property
+    def favicon_url(self):
+        """Get favicon URL from the subscription's website using Google's service."""
+        if self.url:
+            try:
+                from urllib.parse import urlparse
+                parsed = urlparse(self.url if self.url.startswith('http') else f'https://{self.url}')
+                domain = parsed.netloc or parsed.path.split('/')[0]
+                if domain:
+                    # Google's favicon service - reliable and fast
+                    return f"https://www.google.com/s2/favicons?domain={domain}&sz=64"
+            except:
+                pass
+        return None
+    
     def to_dict(self):
         return {
             'id': self.id,
@@ -116,6 +131,7 @@ class Subscription(db.Model):
             'url': self.url,
             'notes': self.notes,
             'icon': self.icon,
+            'favicon_url': self.favicon_url,
             'is_active': self.is_active,
             'is_variable': self.is_variable,
             'is_overdue': self.is_overdue,

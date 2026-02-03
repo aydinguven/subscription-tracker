@@ -67,13 +67,25 @@
                 <tr
                     class="{% if sub.is_overdue %}row-overdue{% endif %} {% if not sub.is_active %}row-inactive{% endif %}">
                     <td>
-                        <div class="sub-name">
-                            <strong>{{ sub.name }}</strong>
-                            {% if sub.url %}
-                            <a href="{{ sub.url }}" target="_blank" class="sub-link">
-                                <i data-lucide="external-link"></i>
-                            </a>
-                            {% endif %}
+                        <div class="sub-name-cell">
+                            <div class="sub-icon">
+                                {% if sub.favicon_url %}
+                                <img src="{{ sub.favicon_url }}" alt="" class="sub-favicon"
+                                    onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                                <i data-lucide="{{ sub.icon or 'receipt' }}" style="display: none;"></i>
+                                {% else %}
+                                <i data-lucide="{{ sub.icon or 'receipt' }}"></i>
+                                {% endif %}
+                            </div>
+                            <div class="sub-name">
+                                <strong>{{ sub.name }}</strong>
+                                {% if sub.is_variable %}<span class="variable-badge">Variable</span>{% endif %}
+                                {% if sub.url %}
+                                <a href="{{ sub.url }}" target="_blank" class="sub-link">
+                                    <i data-lucide="external-link"></i>
+                                </a>
+                                {% endif %}
+                            </div>
                         </div>
                     </td>
                     <td>
