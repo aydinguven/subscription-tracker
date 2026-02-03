@@ -115,6 +115,14 @@ install_app() {
     chown -R "$SERVICE_USER:$SERVICE_USER" "$INSTALL_DIR"
     chmod -R 755 "$INSTALL_DIR/venv/bin"
     chmod 750 "$INSTALL_DIR"
+    
+    # Fix SELinux context if SELinux is enabled (RHEL/CentOS)
+    if command -v getenforce &> /dev/null && [ "$(getenforce)" != "Disabled" ]; then
+        log_info "Setting SELinux context for venv..."
+        chcon -R -t bin_t "$INSTALL_DIR/venv/bin/" 2>/dev/null || true
+        # Allow httpd to connect to network if needed
+        setsebool -P httpd_can_network_connect 1 2>/dev/null || true
+    fi
 }
 
 create_config() {
