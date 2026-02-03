@@ -1288,3 +1288,119 @@ a:hover {
     align-items: center;
     gap: 0.5rem;
 }
+
+/* Navigation divider */
+.nav-divider {
+    height: 1px;
+    background: var(--border-color);
+    margin: 0.5rem 0;
+}
+
+/* Export/Import styles */
+.export-intro {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1.5rem;
+    background: var(--bg-tertiary);
+    border-radius: var(--radius-md);
+    margin-bottom: 1.5rem;
+}
+
+.export-intro i {
+    width: 48px;
+    height: 48px;
+    color: var(--primary);
+    flex-shrink: 0;
+}
+
+.export-intro p {
+    margin: 0;
+    color: var(--text-secondary);
+}
+
+.export-options {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.export-option {
+    cursor: pointer;
+}
+
+.export-option input[type="checkbox"] {
+    display: none;
+}
+
+.export-option .option-content {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem;
+    background: var(--bg-card);
+    border: 2px solid var(--border-color);
+    border-radius: var(--radius-md);
+    transition: all var(--transition-fast);
+}
+
+.export-option input[type="checkbox"]:checked+.option-content {
+    border-color: var(--primary);
+    background: rgba(99, 102, 241, 0.1);
+}
+
+.export-option:hover .option-content {
+    border-color: var(--primary);
+}
+
+.option-icon {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-tertiary);
+    border-radius: var(--radius-sm);
+}
+
+.option-icon i {
+    width: 20px;
+    height: 20px;
+    color: var(--text-secondary);
+}
+
+.option-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.option-info strong {
+    color: var(--text-primary);
+}
+
+.option-info span {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+/* File input */
+.file-input {
+    background: var(--bg-tertiary);
+    border: 2px dashed var(--border-color);
+    border-radius: var(--radius-md);
+    padding: 2rem;
+    width: 100%;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.file-input:hover {
+    border-color: var(--primary);
+}
+
+.file-input:focus {
+    outline: none;
+    border-color: var(--primary);
+}

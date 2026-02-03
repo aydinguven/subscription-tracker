@@ -1,0 +1,102 @@
+{% extends 'base.html' %}
+
+{% block title %}Import Data - Subscription Tracker{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <a href="{{ url_for('dashboard.index') }}" class="back-link">
+        <i data-lucide="arrow-left"></i>
+        Back to Dashboard
+    </a>
+    <h1>Import Data</h1>
+</div>
+
+<div class="card form-card">
+    <form method="POST" enctype="multipart/form-data" class="form">
+        <div class="export-intro">
+            <i data-lucide="upload"></i>
+            <p>Import data from a previously exported JSON file. Select which categories of data to import.</p>
+        </div>
+
+        <div class="form-group full-width">
+            <label for="file">Select JSON File *</label>
+            <input type="file" id="file" name="file" accept=".json" required class="file-input">
+        </div>
+
+        <div class="export-options">
+            <label class="export-option">
+                <input type="checkbox" name="categories" checked>
+                <div class="option-content">
+                    <div class="option-icon">
+                        <i data-lucide="folder"></i>
+                    </div>
+                    <div class="option-info">
+                        <strong>Categories</strong>
+                        <span>Import categories</span>
+                    </div>
+                </div>
+            </label>
+
+            <label class="export-option">
+                <input type="checkbox" name="payment_methods" checked>
+                <div class="option-content">
+                    <div class="option-icon">
+                        <i data-lucide="credit-card"></i>
+                    </div>
+                    <div class="option-info">
+                        <strong>Payment Methods</strong>
+                        <span>Import payment methods</span>
+                    </div>
+                </div>
+            </label>
+
+            <label class="export-option">
+                <input type="checkbox" name="subscriptions" checked>
+                <div class="option-content">
+                    <div class="option-icon">
+                        <i data-lucide="repeat"></i>
+                    </div>
+                    <div class="option-info">
+                        <strong>Subscriptions</strong>
+                        <span>Import subscriptions</span>
+                    </div>
+                </div>
+            </label>
+
+            <label class="export-option">
+                <input type="checkbox" name="payments" checked>
+                <div class="option-content">
+                    <div class="option-icon">
+                        <i data-lucide="receipt"></i>
+                    </div>
+                    <div class="option-info">
+                        <strong>Payments</strong>
+                        <span>Import payment history</span>
+                    </div>
+                </div>
+            </label>
+        </div>
+
+        <div class="form-group full-width">
+            <label class="checkbox-label">
+                <input type="checkbox" name="skip_existing" checked>
+                <span>Skip existing items (don't overwrite)</span>
+            </label>
+        </div>
+
+        <div class="form-actions">
+            <a href="{{ url_for('dashboard.index') }}" class="btn btn-secondary">Cancel</a>
+            <button type="submit" class="btn btn-primary">
+                <i data-lucide="upload"></i>
+                Import Data
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    lucide.createIcons();
+</script>
+{% endblock %}

@@ -54,6 +54,17 @@
                     <i data-lucide="wallet"></i>
                     <span>Payment Methods</span>
                 </a>
+                <div class="nav-divider"></div>
+                <a href="{{ url_for('data.export_data') }}"
+                    class="nav-item {% if request.endpoint == 'data.export_data' %}active{% endif %}">
+                    <i data-lucide="download"></i>
+                    <span>Export</span>
+                </a>
+                <a href="{{ url_for('data.import_data') }}"
+                    class="nav-item {% if request.endpoint == 'data.import_data' %}active{% endif %}">
+                    <i data-lucide="upload"></i>
+                    <span>Import</span>
+                </a>
             </nav>
             <div class="sidebar-footer">
                 <button class="theme-toggle" onclick="toggleTheme()">

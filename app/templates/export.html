@@ -1,0 +1,91 @@
+{% extends 'base.html' %}
+
+{% block title %}Export Data - Subscription Tracker{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <a href="{{ url_for('dashboard.index') }}" class="back-link">
+        <i data-lucide="arrow-left"></i>
+        Back to Dashboard
+    </a>
+    <h1>Export Data</h1>
+</div>
+
+<div class="card form-card">
+    <form method="POST" class="form">
+        <div class="export-intro">
+            <i data-lucide="download"></i>
+            <p>Select which data you want to export. The data will be saved as a JSON file that can be imported later.
+            </p>
+        </div>
+
+        <div class="export-options">
+            <label class="export-option">
+                <input type="checkbox" name="categories" checked>
+                <div class="option-content">
+                    <div class="option-icon">
+                        <i data-lucide="folder"></i>
+                    </div>
+                    <div class="option-info">
+                        <strong>Categories</strong>
+                        <span>{{ stats.categories }} categories</span>
+                    </div>
+                </div>
+            </label>
+
+            <label class="export-option">
+                <input type="checkbox" name="payment_methods" checked>
+                <div class="option-content">
+                    <div class="option-icon">
+                        <i data-lucide="credit-card"></i>
+                    </div>
+                    <div class="option-info">
+                        <strong>Payment Methods</strong>
+                        <span>{{ stats.payment_methods }} methods</span>
+                    </div>
+                </div>
+            </label>
+
+            <label class="export-option">
+                <input type="checkbox" name="subscriptions" checked>
+                <div class="option-content">
+                    <div class="option-icon">
+                        <i data-lucide="repeat"></i>
+                    </div>
+                    <div class="option-info">
+                        <strong>Subscriptions</strong>
+                        <span>{{ stats.subscriptions }} subscriptions</span>
+                    </div>
+                </div>
+            </label>
+
+            <label class="export-option">
+                <input type="checkbox" name="payments" checked>
+                <div class="option-content">
+                    <div class="option-icon">
+                        <i data-lucide="receipt"></i>
+                    </div>
+                    <div class="option-info">
+                        <strong>Payments</strong>
+                        <span>{{ stats.payments }} payments</span>
+                    </div>
+                </div>
+            </label>
+        </div>
+
+        <div class="form-actions">
+            <a href="{{ url_for('dashboard.index') }}" class="btn btn-secondary">Cancel</a>
+            <button type="submit" class="btn btn-primary">
+                <i data-lucide="download"></i>
+                Export Selected Data
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    lucide.createIcons();
+</script>
+{% endblock %}

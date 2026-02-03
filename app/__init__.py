@@ -17,6 +17,7 @@ def create_app(config_class=Config):
     from app.routes.payments import bp as payments_bp
     from app.routes.categories import bp as categories_bp
     from app.routes.payment_methods import bp as payment_methods_bp
+    from app.routes.data import bp as data_bp
     from app.routes.api import bp as api_bp
     
     app.register_blueprint(dashboard_bp)
@@ -24,6 +25,7 @@ def create_app(config_class=Config):
     app.register_blueprint(payments_bp, url_prefix='/payments')
     app.register_blueprint(categories_bp, url_prefix='/categories')
     app.register_blueprint(payment_methods_bp, url_prefix='/payment-methods')
+    app.register_blueprint(data_bp, url_prefix='/data')
     app.register_blueprint(api_bp, url_prefix='/api')
     
     # Create tables
