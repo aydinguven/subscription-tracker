@@ -59,6 +59,8 @@ def add():
         billing_cycle = request.form.get('billing_cycle', 'monthly')
         next_due_date = request.form.get('next_due_date')
         url = request.form.get('url')
+        if url and not url.startswith(('http://', 'https://')):
+            url = 'https://' + url
         notes = request.form.get('notes')
         icon = request.form.get('icon', 'receipt')
         is_variable = request.form.get('is_variable') == 'on'
@@ -107,7 +109,10 @@ def edit(id):
         subscription.billing_cycle = request.form.get('billing_cycle', 'monthly')
         next_due_date = request.form.get('next_due_date')
         subscription.next_due_date = date.fromisoformat(next_due_date) if next_due_date else None
-        subscription.url = request.form.get('url')
+        url = request.form.get('url')
+        if url and not url.startswith(('http://', 'https://')):
+            url = 'https://' + url
+        subscription.url = url
         subscription.notes = request.form.get('notes')
         subscription.icon = request.form.get('icon', 'receipt')
         subscription.is_variable = request.form.get('is_variable') == 'on'
