@@ -105,11 +105,15 @@ install_app() {
     "$INSTALL_DIR/venv/bin/pip" install -r "$INSTALL_DIR/requirements.txt"
     "$INSTALL_DIR/venv/bin/pip" install gunicorn
     
+    # Ensure venv binaries are executable
+    chmod +x "$INSTALL_DIR/venv/bin/"*
+    
     # Create data directory
     mkdir -p "$INSTALL_DIR/data"
     
     # Set permissions
     chown -R "$SERVICE_USER:$SERVICE_USER" "$INSTALL_DIR"
+    chmod -R 755 "$INSTALL_DIR/venv/bin"
     chmod 750 "$INSTALL_DIR"
 }
 
