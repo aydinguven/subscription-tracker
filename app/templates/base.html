@@ -18,8 +18,16 @@
 
 <body>
     <div class="app-container">
+        <!-- Mobile Menu Toggle -->
+        <button class="mobile-menu-toggle" style="display: none;" onclick="toggleMobileMenu()">
+            <i data-lucide="menu"></i>
+        </button>
+
+        <!-- Sidebar Backdrop (for mobile) -->
+        <div class="sidebar-backdrop" onclick="closeMobileMenu()"></div>
+
         <!-- Sidebar -->
-        <aside class="sidebar">
+        <aside class="sidebar" id="sidebar">
             <div class="sidebar-header">
                 <div class="logo">
                     <i data-lucide="wallet"></i>
@@ -145,6 +153,28 @@
 
         // Initialize Lucide icons
         lucide.createIcons();
+
+        // Mobile menu functions
+        function toggleMobileMenu() {
+            document.getElementById('sidebar').classList.toggle('open');
+            document.querySelector('.sidebar-backdrop').classList.toggle('show');
+            document.body.style.overflow = document.getElementById('sidebar').classList.contains('open') ? 'hidden' : '';
+        }
+
+        function closeMobileMenu() {
+            document.getElementById('sidebar').classList.remove('open');
+            document.querySelector('.sidebar-backdrop').classList.remove('show');
+            document.body.style.overflow = '';
+        }
+
+        // Close menu when clicking nav links on mobile
+        document.querySelectorAll('.sidebar .nav-item').forEach(link => {
+            link.addEventListener('click', () => {
+                if (window.innerWidth <= 768) {
+                    closeMobileMenu();
+                }
+            });
+        });
 
         // Load exchange rates
         fetch('/api/rates')
