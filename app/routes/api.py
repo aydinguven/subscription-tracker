@@ -88,12 +88,7 @@ def get_stats():
     # Monthly total
     monthly_total = 0
     for sub in active_subs:
-        monthly_amount = sub.amount
-        if sub.billing_cycle == 'yearly':
-            monthly_amount = sub.amount / 12
-        elif sub.billing_cycle == 'weekly':
-            monthly_amount = sub.amount * 4.33
-        monthly_total += CurrencyService.convert_to_primary(monthly_amount, sub.currency, rates)
+        monthly_total += CurrencyService.convert_to_primary(sub.monthly_amount, sub.currency, rates)
     
     # Yearly total from payments
     current_year = today.year
@@ -136,3 +131,21 @@ def get_stats():
         'monthly_spending': monthly_spending,
         'rates': rates
     })
+
+
+@bp.route('/health')
+def health():
+    """Health check endpoint for load balancers and monitoring."""
+    try:
+        # Verify database connection
+        db.session.execute(db.text('SELECT 1'))
+        return jsonify({
+            'status': 'healthy',
+            'database': 'connected'
+        })
+    except Exception as e:
+        return jsonify({
+            'status': 'unhealthy',
+            'database': 'disconnected',
+            'error': str(e)
+        }), 503

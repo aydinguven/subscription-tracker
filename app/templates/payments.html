@@ -62,7 +62,7 @@
     {% endfor %}
 </div>
 
-<!-- Payments Table -->
+<!-- Payments Table (Desktop) -->
 <div class="card">
     <div class="table-responsive">
         <table class="table">
@@ -127,7 +127,68 @@
             </tbody>
         </table>
     </div>
+
+    <!-- Mobile Card View -->
+    <div class="mobile-card-list">
+        {% if payments %}
+        {% for payment in payments %}
+        <div class="mobile-card">
+            <div class="mobile-card-header">
+                <div class="mobile-card-icon">
+                    <i data-lucide="receipt"></i>
+                </div>
+                <div class="mobile-card-title">
+                    <h3>
+                        {% if payment.subscription %}
+                        {{ payment.subscription.name }}
+                        {% else %}
+                        Payment
+                        {% endif %}
+                    </h3>
+                    <div class="mobile-card-subtitle">{{ payment.paid_date.strftime('%b %d, %Y') }}</div>
+                </div>
+                <div class="mobile-card-amount">
+                    {% if payment.currency == 'TRY' %}₺{% elif payment.currency == 'USD' %}${% else %}€{% endif %}{{
+                    "%.2f"|format(payment.amount) }}
+                    {% if payment.currency != 'TRY' %}
+                    <small>≈ ₺{{ "%.2f"|format(payment.amount * rates.get(payment.currency, 1)) }}</small>
+                    {% endif %}
+                </div>
+            </div>
+
+            {% if payment.notes %}
+            <div class="mobile-card-details">
+                <div class="mobile-card-detail" style="grid-column: span 2;">
+                    <span class="mobile-card-detail-label">Notes</span>
+                    <span class="mobile-card-detail-value">{{ payment.notes }}</span>
+                </div>
+            </div>
+            {% endif %}
+
+            <div class="mobile-card-actions" style="grid-template-columns: 1fr;">
+                <form action="{{ url_for('payments.delete', id=payment.id) }}" method="POST"
+                    onsubmit="return confirm('Delete this payment?');">
+                    <button type="submit" class="btn btn-danger" style="width: 100%;">
+                        <i data-lucide="trash-2"></i>
+                        Delete
+                    </button>
+                </form>
+            </div>
+        </div>
+        {% endfor %}
+        {% else %}
+        <div class="empty-state-card">
+            <i data-lucide="inbox"></i>
+            <p>No payments found</p>
+        </div>
+        {% endif %}
+    </div>
 </div>
+
+<!-- Floating Action Button -->
+<a href="{{ url_for('payments.add') }}" class="fab" title="Add Payment">
+    <i data-lucide="plus"></i>
+</a>
 {% endblock %}
 
 {% block scripts %}

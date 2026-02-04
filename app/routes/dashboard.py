@@ -22,13 +22,7 @@ def index():
     # Calculate monthly total in TRY
     monthly_total = 0
     for sub in active_subs:
-        monthly_amount = sub.amount
-        if sub.billing_cycle == 'yearly':
-            monthly_amount = sub.amount / 12
-        elif sub.billing_cycle == 'weekly':
-            monthly_amount = sub.amount * 4.33
-        
-        monthly_total += CurrencyService.convert_to_primary(monthly_amount, sub.currency, rates)
+        monthly_total += CurrencyService.convert_to_primary(sub.monthly_amount, sub.currency, rates)
     
     # Upcoming due this week
     upcoming = Subscription.query.filter(
@@ -49,13 +43,7 @@ def index():
         cat_name = sub.category.name if sub.category else 'Uncategorized'
         cat_color = sub.category.color if sub.category else '#6b7280'
         
-        monthly_amount = sub.amount
-        if sub.billing_cycle == 'yearly':
-            monthly_amount = sub.amount / 12
-        elif sub.billing_cycle == 'weekly':
-            monthly_amount = sub.amount * 4.33
-        
-        amount_try = CurrencyService.convert_to_primary(monthly_amount, sub.currency, rates)
+        amount_try = CurrencyService.convert_to_primary(sub.monthly_amount, sub.currency, rates)
         
         if cat_name not in category_totals:
             category_totals[cat_name] = {'total': 0, 'color': cat_color}

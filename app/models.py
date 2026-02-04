@@ -89,6 +89,15 @@ class Subscription(db.Model):
             return delta.days
         return None
     
+    @property
+    def monthly_amount(self):
+        """Calculate normalized monthly amount based on billing cycle."""
+        if self.billing_cycle == 'yearly':
+            return self.amount / 12
+        elif self.billing_cycle == 'weekly':
+            return self.amount * 4.33
+        return self.amount
+    
     def advance_due_date(self):
         """Advance the due date based on billing cycle."""
         if not self.next_due_date:

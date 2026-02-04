@@ -1,11 +1,53 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash
-from datetime import date
+from datetime import date, datetime
 from sqlalchemy import extract, func
 from app import db
 from app.models import Payment, Subscription, PaymentMethod
 from app.services.currency import CurrencyService
 
 bp = Blueprint('payments', __name__)
+
+
+def parse_date(date_string):
+    """Parse date string from various formats.
+    
+    Supports:
+    - ISO format: YYYY-MM-DD (standard HTML5 date input)
+    - DD Mon YY: e.g., '06 Feb 26' (some mobile browsers)
+    - DD Mon YYYY: e.g., '06 Feb 2026'
+    - DD/MM/YYYY: e.g., '06/02/2026'
+    """
+    if not date_string:
+        return None
+    
+    date_string = date_string.strip()
+    
+    # Try ISO format first (most common from HTML5 date inputs)
+    try:
+        return date.fromisoformat(date_string)
+    except ValueError:
+        pass
+    
+    # Try various other formats
+    formats = [
+        '%d %b %y',    # 06 Feb 26
+        '%d %b %Y',    # 06 Feb 2026
+        '%d/%m/%Y',    # 06/02/2026
+        '%d/%m/%y',    # 06/02/26
+        '%d-%m-%Y',    # 06-02-2026
+        '%d-%m-%y',    # 06-02-26
+        '%m/%d/%Y',    # 02/06/2026
+        '%m/%d/%y',    # 02/06/26
+    ]
+    
+    for fmt in formats:
+        try:
+            return datetime.strptime(date_string, fmt).date()
+        except ValueError:
+            continue
+    
+    # If all parsing fails, raise a helpful error
+    raise ValueError(f"Could not parse date: '{date_string}'. Expected formats: YYYY-MM-DD, DD Mon YY, DD/MM/YYYY")
 
 
 @bp.route('/')
@@ -85,7 +127,7 @@ def add():
             amount=amount,
             original_amount=original_amount,
             currency=currency,
-            paid_date=date.fromisoformat(paid_date) if paid_date else date.today(),
+            paid_date=parse_date(paid_date) or date.today(),
             notes=notes
         )
         

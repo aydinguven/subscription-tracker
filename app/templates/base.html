@@ -83,6 +83,10 @@
                     <i data-lucide="moon" id="theme-icon-dark"></i>
                     <span id="theme-label">Light Mode</span>
                 </button>
+                <button class="mobile-mode-toggle" onclick="toggleMobileMode()">
+                    <i data-lucide="smartphone"></i>
+                    <span id="mobile-mode-label">Mobile Mode</span>
+                </button>
                 <div class="exchange-rates">
                     <span class="rates-label">Exchange Rates</span>
                     <div class="rates-values" id="exchange-rates">
@@ -111,6 +115,34 @@
 
             {% block content %}{% endblock %}
         </main>
+
+        <!-- Bottom Navigation (Mobile) -->
+        <nav class="bottom-nav">
+            <div class="bottom-nav-items">
+                <a href="{{ url_for('dashboard.index') }}"
+                    class="bottom-nav-item {% if request.endpoint == 'dashboard.index' %}active{% endif %}">
+                    <i data-lucide="layout-dashboard"></i>
+                    <span>Home</span>
+                </a>
+                <a href="{{ url_for('subscriptions.index') }}"
+                    class="bottom-nav-item {% if 'subscriptions' in request.endpoint %}active{% endif %}">
+                    <i data-lucide="repeat"></i>
+                    <span>Subs</span>
+                </a>
+                <a href="{{ url_for('subscriptions.add') }}" class="bottom-nav-add">
+                    <i data-lucide="plus"></i>
+                </a>
+                <a href="{{ url_for('payments.index') }}"
+                    class="bottom-nav-item {% if request.endpoint == 'payments.index' %}active{% endif %}">
+                    <i data-lucide="credit-card"></i>
+                    <span>Payments</span>
+                </a>
+                <a href="#" class="bottom-nav-item" onclick="toggleMobileMenu(); return false;">
+                    <i data-lucide="menu"></i>
+                    <span>More</span>
+                </a>
+            </div>
+        </nav>
     </div>
 
     <script src="{{ url_for('static', filename='js/app.js') }}"></script>
@@ -167,6 +199,32 @@
             document.body.style.overflow = '';
         }
 
+        // Mobile mode toggle
+        function initMobileMode() {
+            const savedMode = localStorage.getItem('mobileMode') === 'true';
+            if (savedMode) {
+                document.body.classList.add('mobile-mode');
+                updateMobileModeLabel(true);
+            }
+        }
+
+        function toggleMobileMode() {
+            const isEnabled = document.body.classList.toggle('mobile-mode');
+            localStorage.setItem('mobileMode', isEnabled);
+            updateMobileModeLabel(isEnabled);
+            lucide.createIcons();
+        }
+
+        function updateMobileModeLabel(isEnabled) {
+            const label = document.getElementById('mobile-mode-label');
+            if (label) {
+                label.textContent = isEnabled ? 'Desktop Mode' : 'Mobile Mode';
+            }
+        }
+
+        // Initialize mobile mode
+        initMobileMode();
+
         // Close menu when clicking nav links on mobile
         document.querySelectorAll('.sidebar .nav-item').forEach(link => {
             link.addEventListener('click', () => {
@@ -197,11 +255,22 @@
             const currentValue = input.value;
             input.type = 'text';
             input.classList.add('date-picker');
+
+            // Parse the ISO date if it exists
+            let defaultDate = null;
+            if (currentValue) {
+                // Parse ISO format (YYYY-MM-DD) into a Date object
+                const parts = currentValue.split('-');
+                if (parts.length === 3) {
+                    defaultDate = new Date(parts[0], parts[1] - 1, parts[2]);
+                }
+            }
+
             flatpickr(input, {
                 dateFormat: 'd M y',
                 altInput: true,
                 altFormat: 'D d M y',
-                defaultDate: currentValue || null,
+                defaultDate: defaultDate,
                 theme: document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark',
                 onChange: function (selectedDates, dateStr, instance) {
                     // Store ISO format in a hidden field or data attribute

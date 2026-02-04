@@ -103,7 +103,7 @@ install_app() {
     log_info "Installing Python dependencies..."
     "$INSTALL_DIR/venv/bin/pip" install --upgrade pip
     "$INSTALL_DIR/venv/bin/pip" install -r "$INSTALL_DIR/requirements.txt"
-    "$INSTALL_DIR/venv/bin/pip" install gunicorn
+    # gunicorn is now in requirements.txt
     
     # Ensure venv binaries are executable
     chmod +x "$INSTALL_DIR/venv/bin/"*
@@ -111,17 +111,33 @@ install_app() {
     # Create data directory
     mkdir -p "$INSTALL_DIR/data"
     
-    # Set permissions
+    # Set broad permissions first to ensure access
+    log_info "Setting permissions..."
     chown -R "$SERVICE_USER:$SERVICE_USER" "$INSTALL_DIR"
-    chmod -R 755 "$INSTALL_DIR/venv/bin"
-    chmod 750 "$INSTALL_DIR"
     
-    # Fix SELinux context if SELinux is enabled (RHEL/CentOS)
+    # Directories should be 755
+    find "$INSTALL_DIR" -type d -exec chmod 755 {} \;
+    
+    # Files should be 644 by default
+    find "$INSTALL_DIR" -type f -exec chmod 644 {} \;
+    
+    # Binaries and scripts need +x
+    chmod +x "$INSTALL_DIR/venv/bin/"*
+    chmod +x "$INSTALL_DIR/run.py"
+    chmod +x "$INSTALL_DIR"
+    
+    # Fix SELinux context if SELinux is enabled (RHEL/CentOS/Fedora)
     if command -v getenforce &> /dev/null && [ "$(getenforce)" != "Disabled" ]; then
-        log_info "Setting SELinux context for venv..."
+        log_info "Setting SELinux context..."
+        
+        # Try to use restorecon first (best practice if policy exists)
+        if command -v restorecon &> /dev/null; then
+             restorecon -R "$INSTALL_DIR"
+        fi
+
+        # Explicitly set bin_t for the virtual env executables if needed
+        # This is often necessary if the default policy doesn't mark /opt as executable for services
         chcon -R -t bin_t "$INSTALL_DIR/venv/bin/" 2>/dev/null || true
-        # Allow httpd to connect to network if needed
-        setsebool -P httpd_can_network_connect 1 2>/dev/null || true
     fi
 }
 
@@ -157,7 +173,7 @@ Group=$SERVICE_USER
 WorkingDirectory=$INSTALL_DIR
 Environment="PATH=$INSTALL_DIR/venv/bin:/usr/bin:/bin"
 EnvironmentFile=$INSTALL_DIR/.env
-ExecStart=$INSTALL_DIR/venv/bin/python -m gunicorn --bind 0.0.0.0:$PORT --workers 2 'app:create_app()'
+ExecStart=$INSTALL_DIR/venv/bin/gunicorn --bind 0.0.0.0:$PORT --workers 2 'app:create_app()'
 Restart=always
 RestartSec=5
 

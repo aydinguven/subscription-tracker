@@ -1,4 +1,4 @@
-# Subscription Tracker
+# Subscription Manager
 
 A personal Flask web application for tracking subscriptions, payments, and utilities.
 
@@ -34,8 +34,8 @@ A personal Flask web application for tracking subscriptions, payments, and utili
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/subscription-tracker.git
-cd subscription-tracker
+git clone https://github.com/aydinguven/subscription-manager.git
+cd subscription-manager
 
 # Create virtual environment
 python -m venv venv

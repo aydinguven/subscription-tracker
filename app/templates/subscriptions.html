@@ -46,7 +46,7 @@
     </form>
 </div>
 
-<!-- Subscriptions Table -->
+<!-- Subscriptions Table (Desktop) -->
 <div class="card">
     <div class="table-responsive">
         <table class="table">
@@ -174,7 +174,98 @@
             </tbody>
         </table>
     </div>
+
+    <!-- Mobile Card View -->
+    <div class="mobile-card-list">
+        {% if subscriptions %}
+        {% for sub in subscriptions %}
+        <div
+            class="mobile-card {% if sub.is_overdue %}overdue{% endif %} {% if not sub.is_active %}inactive{% endif %}">
+            <div class="mobile-card-header">
+                <div class="mobile-card-icon">
+                    {% if sub.favicon_url %}
+                    <img src="{{ sub.favicon_url }}" alt=""
+                        onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                    <i data-lucide="{{ sub.icon or 'receipt' }}" style="display: none;"></i>
+                    {% else %}
+                    <i data-lucide="{{ sub.icon or 'receipt' }}"></i>
+                    {% endif %}
+                </div>
+                <div class="mobile-card-title">
+                    <h3>
+                        {{ sub.name }}
+                        {% if sub.category %}
+                        <span class="category-badge"
+                            style="background: {{ sub.category.color }}20; color: {{ sub.category.color }};">
+                            {{ sub.category.name }}
+                        </span>
+                        {% endif %}
+                    </h3>
+                    <div class="mobile-card-subtitle">{{ sub.billing_cycle|capitalize }}</div>
+                </div>
+                <div class="mobile-card-amount">
+                    {% if sub.currency == 'TRY' %}₺{% elif sub.currency == 'USD' %}${% else %}€{% endif %}{{
+                    "%.2f"|format(sub.amount) }}
+                    {% if sub.currency != 'TRY' %}
+                    <small>≈ ₺{{ "%.2f"|format(sub.amount * rates.get(sub.currency, 1)) }}</small>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="mobile-card-details">
+                <div class="mobile-card-detail">
+                    <span class="mobile-card-detail-label">Next Due</span>
+                    <span class="mobile-card-detail-value {% if sub.is_overdue %}overdue{% endif %}">
+                        {% if sub.next_due_date %}
+                        {{ sub.next_due_date.strftime('%b %d, %Y') }}
+                        {% if sub.is_overdue %} (Overdue){% elif sub.days_until_due <= 3 %} ({{ sub.days_until_due
+                            }}d){% endif %} {% else %} — {% endif %} </span>
+                </div>
+                <div class="mobile-card-detail">
+                    <span class="mobile-card-detail-label">Status</span>
+                    <span class="mobile-card-detail-value">{{ 'Active' if sub.is_active else 'Inactive' }}</span>
+                </div>
+            </div>
+
+            <div class="mobile-card-actions">
+                {% if sub.is_active and sub.next_due_date %}
+                <form action="{{ url_for('subscriptions.mark_paid', id=sub.id) }}" method="POST">
+                    <button type="submit" class="btn btn-success">
+                        <i data-lucide="check"></i>
+                        Paid
+                    </button>
+                </form>
+                {% else %}
+                <div></div>
+                {% endif %}
+                <a href="{{ url_for('subscriptions.edit', id=sub.id) }}" class="btn btn-secondary">
+                    <i data-lucide="pencil"></i>
+                    Edit
+                </a>
+                <form action="{{ url_for('subscriptions.delete', id=sub.id) }}" method="POST"
+                    onsubmit="return confirm('Delete {{ sub.name }}?');">
+                    <button type="submit" class="btn btn-danger">
+                        <i data-lucide="trash-2"></i>
+                        Delete
+                    </button>
+                </form>
+            </div>
+        </div>
+        {% endfor %}
+        {% else %}
+        <div class="empty-state-card">
+            <i data-lucide="inbox"></i>
+            <p>No subscriptions found</p>
+            <a href="{{ url_for('subscriptions.add') }}" class="btn btn-primary">Add your first subscription</a>
+        </div>
+        {% endif %}
+    </div>
 </div>
+
+<!-- Floating Action Button -->
+<a href="{{ url_for('subscriptions.add') }}" class="fab" title="Add Subscription">
+    <i data-lucide="plus"></i>
+</a>
 {% endblock %}
 
 {% block scripts %}

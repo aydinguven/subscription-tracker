@@ -70,6 +70,26 @@
 </div>
 {% endif %}
 
+<!-- Quick Actions (Mobile) -->
+<div class="quick-actions">
+    <a href="{{ url_for('subscriptions.add') }}" class="quick-action">
+        <i data-lucide="plus-circle"></i>
+        <span>Add Sub</span>
+    </a>
+    <a href="{{ url_for('payments.add') }}" class="quick-action">
+        <i data-lucide="receipt"></i>
+        <span>Log Payment</span>
+    </a>
+    <a href="{{ url_for('payments.yearly_report') }}" class="quick-action">
+        <i data-lucide="bar-chart-3"></i>
+        <span>Report</span>
+    </a>
+    <a href="{{ url_for('data.export_data') }}" class="quick-action">
+        <i data-lucide="download"></i>
+        <span>Export</span>
+    </a>
+</div>
+
 <div class="dashboard-grid">
     <!-- Spending Chart -->
     <div class="card chart-card">
@@ -120,6 +140,33 @@
                 </li>
                 {% endfor %}
             </ul>
+            <!-- Mobile Cards for Upcoming -->
+            {% for sub in upcoming %}
+            <div class="upcoming-item-mobile">
+                <div class="upcoming-item-mobile-header">
+                    <span class="upcoming-item-mobile-name">{{ sub.name }}</span>
+                    <span class="upcoming-item-mobile-amount">
+                        {% if sub.currency == 'TRY' %}₺{% elif sub.currency == 'USD' %}${% else %}€{% endif %}{{
+                        "%.2f"|format(sub.amount) }}
+                    </span>
+                </div>
+                <div class="upcoming-item-mobile-date">
+                    {% if sub.days_until_due == 0 %}Due today{% elif sub.days_until_due == 1 %}Due tomorrow{% else %}Due
+                    {{ sub.next_due_date.strftime('%b %d') }}{% endif %}
+                </div>
+                <div class="upcoming-item-mobile-actions">
+                    <form action="{{ url_for('subscriptions.mark_paid', id=sub.id) }}" method="POST" style="flex: 1;">
+                        <button type="submit" class="btn btn-success" style="width: 100%;">
+                            <i data-lucide="check"></i>
+                            Mark Paid
+                        </button>
+                    </form>
+                    <a href="{{ url_for('subscriptions.edit', id=sub.id) }}" class="btn btn-secondary">
+                        <i data-lucide="pencil"></i>
+                    </a>
+                </div>
+            </div>
+            {% endfor %}
             {% else %}
             <p class="empty-state">No payments due this week 🎉</p>
             {% endif %}
@@ -152,6 +199,30 @@
                 </li>
                 {% endfor %}
             </ul>
+            <!-- Mobile Cards for Overdue -->
+            {% for sub in overdue %}
+            <div class="upcoming-item-mobile"
+                style="border-color: rgba(239, 68, 68, 0.3); background: rgba(239, 68, 68, 0.05);">
+                <div class="upcoming-item-mobile-header">
+                    <span class="upcoming-item-mobile-name">{{ sub.name }}</span>
+                    <span class="upcoming-item-mobile-amount" style="color: var(--danger);">
+                        {% if sub.currency == 'TRY' %}₺{% elif sub.currency == 'USD' %}${% else %}€{% endif %}{{
+                        "%.2f"|format(sub.amount) }}
+                    </span>
+                </div>
+                <div class="upcoming-item-mobile-date" style="color: var(--danger);">
+                    {{ (-sub.days_until_due) }} days overdue
+                </div>
+                <div class="upcoming-item-mobile-actions">
+                    <form action="{{ url_for('subscriptions.mark_paid', id=sub.id) }}" method="POST" style="flex: 1;">
+                        <button type="submit" class="btn btn-success" style="width: 100%;">
+                            <i data-lucide="check"></i>
+                            Mark Paid
+                        </button>
+                    </form>
+                </div>
+            </div>
+            {% endfor %}
             {% else %}
             <p class="empty-state">All caught up! ✓</p>
             {% endif %}
