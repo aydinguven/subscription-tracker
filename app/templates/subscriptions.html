@@ -107,7 +107,9 @@
                     </td>
                     <td class="billing-cycle">{{ sub.billing_cycle|capitalize }}</td>
                     <td>
-                        {% if sub.next_due_date %}
+                        {% if not sub.is_active %}
+                        <span class="text-muted">N/A</span>
+                        {% elif sub.next_due_date %}
                         <span class="due-date {% if sub.is_overdue %}overdue{% endif %}">
                             {{ sub.next_due_date.strftime('%b %d, %Y') }}
                             {% if sub.is_overdue %}
@@ -197,7 +199,9 @@
             </span>
             {% endif %}
             <span class="billing-cycle">{{ sub.billing_cycle|capitalize }}</span>
-            {% if sub.next_due_date %}
+            {% if not sub.is_active %}
+            <span class="text-muted">N/A</span>
+            {% elif sub.next_due_date %}
             <span class="due-date {% if sub.is_overdue %}overdue{% endif %}">
                 {{ sub.next_due_date.strftime('%b %d') }}
                 {% if sub.is_overdue %}<span class="overdue-badge">!</span>{% endif %}

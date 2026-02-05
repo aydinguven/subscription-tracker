@@ -54,7 +54,7 @@ def index():
     """List all subscriptions."""
     # Get filter parameters
     category_id = request.args.get('category', type=int)
-    status = request.args.get('status', 'all')
+    status = request.args.get('status', 'active')
     currency = request.args.get('currency', 'all')
     
     query = Subscription.query
