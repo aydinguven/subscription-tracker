@@ -21,7 +21,9 @@
                     <select id="subscription_id" name="subscription_id" required>
                         <option value="">Select Subscription</option>
                         {% for sub in subscriptions %}
-                        <option value="{{ sub.id }}" data-amount="{{ sub.amount }}" data-currency="{{ sub.currency }}">
+                        <option value="{{ sub.id }}" data-amount="{{ sub.amount }}" data-currency="{{ sub.currency }}"
+                            data-payment-method-id="{{ sub.payment_method_id or '' }}"
+                            data-next-due-date="{{ sub.next_due_date.isoformat() if sub.next_due_date else '' }}">
                             {{ sub.name }} ({{ {'TRY': '₺', 'USD': '$', 'EUR': '€'}[sub.currency] }}{{
                             "%.2f"|format(sub.amount) }})
                         </option>
@@ -86,13 +88,26 @@
 
 {% block scripts %}
 <script>
-    // Auto-fill amount and currency when subscription is selected
+    // Auto-fill form fields when subscription is selected
     document.getElementById('subscription_id').addEventListener('change', function () {
         const option = this.options[this.selectedIndex];
         if (option.value) {
+            // Fill amount and currency
             document.getElementById('amount').value = option.dataset.amount;
             document.getElementById('original_amount').value = option.dataset.amount;
             document.getElementById('currency').value = option.dataset.currency;
+
+            // Fill payment method if subscription has one
+            const paymentMethodId = option.dataset.paymentMethodId;
+            if (paymentMethodId) {
+                document.getElementById('payment_method_id').value = paymentMethodId;
+            }
+
+            // Fill payment date with subscription's next due date
+            const nextDueDate = option.dataset.nextDueDate;
+            if (nextDueDate) {
+                document.getElementById('paid_date').value = nextDueDate;
+            }
         }
     });
 </script>

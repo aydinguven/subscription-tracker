@@ -135,7 +135,7 @@
                     </td>
                     <td class="actions">
                         <form action="{{ url_for('payments.delete', id=payment.id) }}" method="POST"
-                            style="display:inline;" onsubmit="return confirmDelete(this, 'Payment');">
+                            style="display:inline;" hx-boost="false" onsubmit="return confirmDelete(this, 'Payment');">
                             <button type="submit" class="btn btn-sm btn-danger" title="Delete">
                                 <i data-lucide="trash-2"></i>
                             </button>
@@ -192,7 +192,7 @@
         </div>
         <div class="mobile-card-actions">
             <form action="{{ url_for('payments.delete', id=payment.id) }}" method="POST" style="display:inline;"
-                onsubmit="return confirmDelete(this, 'Payment');">
+                hx-boost="false" onsubmit="return confirmDelete(this, 'Payment');">
                 <button type="submit" class="btn btn-sm btn-danger">
                     <i data-lucide="trash-2"></i> Delete
                 </button>

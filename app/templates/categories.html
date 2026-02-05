@@ -46,7 +46,7 @@
                             <i data-lucide="edit-2"></i>
                         </a>
                         <form action="{{ url_for('categories.delete', id=cat.id) }}" method="POST"
-                            style="display:inline;" onsubmit="return confirmDelete(this, 'Category');">
+                            style="display:inline;" hx-boost="false" onsubmit="return confirmDelete(this, 'Category');">
                             <button type="submit" class="btn btn-sm btn-danger" title="Delete">
                                 <i data-lucide="trash-2"></i>
                             </button>

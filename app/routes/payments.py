@@ -115,6 +115,13 @@ def add():
         )
         
         db.session.add(payment)
+        
+        # Advance subscription's due date
+        if subscription_id:
+            subscription = Subscription.query.get(int(subscription_id))
+            if subscription:
+                subscription.advance_due_date()
+        
         db.session.commit()
         flash('Payment recorded successfully!', 'success')
         return redirect(url_for('payments.index'))

@@ -27,10 +27,7 @@ function formatCurrency(amount, currency) {
     return `${symbol}${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
-// Confirm delete actions (fallback)
-function confirmDelete(message) {
-    return confirm(message || 'Are you sure you want to delete this item?');
-}
+// NOTE: confirmDelete function is defined in base.html with custom dialog
 
 // Add CSS for slideOut animation if not already present
 const style = document.createElement('style');
