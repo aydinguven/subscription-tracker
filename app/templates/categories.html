@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+
+{% block title %}Categories - Subscription Tracker{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Categories</h1>
+    <div class="header-actions">
+        <a href="{{ url_for('categories.add') }}" class="btn btn-primary">
+            <i data-lucide="plus"></i>
+            Add Category
+        </a>
+    </div>
+</div>
+
+<div class="card">
+    <div class="table-responsive">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Icon</th>
+                    <th>Name</th>
+                    <th>Color</th>
+                    <th>Subscriptions</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if categories %}
+                {% for cat in categories %}
+                <tr>
+                    <td>
+                        <div class="icon-box" style="background: {{ cat.color }}20; color: {{ cat.color }};">
+                            <i data-lucide="{{ cat.icon }}"></i>
+                        </div>
+                    </td>
+                    <td><strong>{{ cat.name }}</strong></td>
+                    <td>
+                        <span class="color-preview" style="background: {{ cat.color }};"></span>
+                        {{ cat.color }}
+                    </td>
+                    <td>{{ cat.subscriptions.count() }}</td>
+                    <td class="actions">
+                        <a href="{{ url_for('categories.edit', id=cat.id) }}" class="btn btn-sm btn-secondary"
+                            title="Edit">
+                            <i data-lucide="edit-2"></i>
+                        </a>
+                        <form action="{{ url_for('categories.delete', id=cat.id) }}" method="POST"
+                            style="display:inline;" onsubmit="return confirmDelete(this, 'Category');">
+                            <button type="submit" class="btn btn-sm btn-danger" title="Delete">
+                                <i data-lucide="trash-2"></i>
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+                {% else %}
+                <tr>
+                    <td colspan="5" class="empty-table">
+                        <i data-lucide="tags"></i>
+                        <p>No categories yet</p>
+                        <a href="{{ url_for('categories.add') }}" class="btn btn-primary">Add Category</a>
+                    </td>
+                </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

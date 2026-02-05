@@ -1,0 +1,268 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Subscription Tracker{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Dashboard</h1>
+    <div class="header-actions">
+        <a href="{{ url_for('subscriptions.add') }}" class="btn btn-primary">
+            <i data-lucide="plus"></i>
+            Add Subscription
+        </a>
+    </div>
+</div>
+
+<!-- Stats Grid -->
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-icon" style="background: rgba(99, 102, 241, 0.15); color: var(--accent);">
+            <i data-lucide="repeat"></i>
+        </div>
+        <div class="stat-content">
+            <span class="stat-value">{{ active_count }}</span>
+            <span class="stat-label">Active Subscriptions</span>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon" style="background: rgba(16, 185, 129, 0.15); color: var(--success);">
+            <i data-lucide="calendar"></i>
+        </div>
+        <div class="stat-content">
+            <span class="stat-value">₺{{ "%.2f"|format(monthly_total) }}</span>
+            <span class="stat-label">Monthly</span>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon" style="background: rgba(59, 130, 246, 0.15); color: #3b82f6;">
+            <i data-lucide="bar-chart-2"></i>
+        </div>
+        <div class="stat-content">
+            <span class="stat-value">₺{{ "%.2f"|format(yearly_total) }}</span>
+            <span class="stat-label">{{ current_year }} Spending</span>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon" style="background: rgba(245, 158, 11, 0.15); color: var(--warning);">
+            <i data-lucide="piggy-bank"></i>
+        </div>
+        <div class="stat-content">
+            <span class="stat-value">₺{{ "%.2f"|format(all_time_savings) }}</span>
+            <span class="stat-label">Total Savings ({{ all_time_savings_count }})</span>
+        </div>
+    </div>
+</div>
+
+<!-- Dashboard Grid -->
+<div class="dashboard-grid">
+    <!-- Overdue -->
+    <div class="card">
+        <div class="card-header">
+            <h3><i data-lucide="alert-circle" style="color: var(--danger);"></i> Overdue</h3>
+        </div>
+        <div class="card-body">
+            {% if overdue %}
+            <ul class="upcoming-list">
+                {% for sub in overdue %}
+                <li class="upcoming-item overdue">
+                    <div class="upcoming-info">
+                        <span class="upcoming-name">
+                            {% if sub.favicon_url %}
+                            <img src="{{ sub.favicon_url }}" alt="" class="sub-favicon"
+                                onerror="this.style.display='none'">
+                            {% endif %}
+                            {{ sub.name }}
+                        </span>
+                        <span class="upcoming-date overdue-date">
+                            Due {{ sub.next_due_date.strftime('%b %d') }} ({{ -sub.days_until_due }} days ago)
+                        </span>
+                    </div>
+                    <div class="upcoming-actions">
+                        <span class="upcoming-amount">{{ {'TRY': '₺', 'USD': '$', 'EUR': '€'}[sub.currency] }}{{
+                            "%.2f"|format(sub.amount) }}</span>
+                        <form action="{{ url_for('subscriptions.mark_paid', id=sub.id) }}" method="POST"
+                            style="display:inline;">
+                            <button type="submit" class="btn btn-sm btn-success" title="Mark as Paid">
+                                <i data-lucide="check"></i>
+                            </button>
+                        </form>
+                    </div>
+                </li>
+                {% endfor %}
+            </ul>
+            {% else %}
+            <div class="empty-state">
+                <i data-lucide="check-circle" style="color: var(--success);"></i>
+                <p>No overdue payments! 🎉</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Upcoming This Week -->
+    <div class="card">
+        <div class="card-header">
+            <h3><i data-lucide="clock" style="color: var(--warning);"></i> Upcoming This Week</h3>
+        </div>
+        <div class="card-body">
+            {% if upcoming %}
+            <ul class="upcoming-list">
+                {% for sub in upcoming %}
+                <li class="upcoming-item">
+                    <div class="upcoming-info">
+                        <span class="upcoming-name">
+                            {% if sub.favicon_url %}
+                            <img src="{{ sub.favicon_url }}" alt="" class="sub-favicon"
+                                onerror="this.style.display='none'">
+                            {% endif %}
+                            {{ sub.name }}
+                        </span>
+                        <span class="upcoming-date">
+                            {% if sub.days_until_due == 0 %}
+                            Due Today
+                            {% elif sub.days_until_due == 1 %}
+                            Due Tomorrow
+                            {% else %}
+                            Due in {{ sub.days_until_due }} days
+                            {% endif %}
+                        </span>
+                    </div>
+                    <div class="upcoming-actions">
+                        <span class="upcoming-amount">{{ {'TRY': '₺', 'USD': '$', 'EUR': '€'}[sub.currency] }}{{
+                            "%.2f"|format(sub.amount) }}</span>
+                        <form action="{{ url_for('subscriptions.mark_paid', id=sub.id) }}" method="POST"
+                            style="display:inline;">
+                            <button type="submit" class="btn btn-sm btn-success" title="Mark as Paid">
+                                <i data-lucide="check"></i>
+                            </button>
+                        </form>
+                    </div>
+                </li>
+                {% endfor %}
+            </ul>
+            {% else %}
+            <div class="empty-state">
+                <i data-lucide="calendar-check"></i>
+                <p>No upcoming payments this week</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Category Breakdown -->
+    <div class="card chart-card">
+        <div class="card-header">
+            <h3><i data-lucide="pie-chart"></i> By Category (Monthly)</h3>
+        </div>
+        <div class="card-body">
+            <canvas id="categoryChart"></canvas>
+        </div>
+    </div>
+
+    <!-- Monthly Spending Trend -->
+    <div class="card chart-card">
+        <div class="card-header">
+            <h3><i data-lucide="trending-up"></i> Monthly Spending</h3>
+        </div>
+        <div class="card-body">
+            <canvas id="spendingChart"></canvas>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Category breakdown chart
+    const categoryData = {{ category_totals | tojson | safe }};
+    const categoryLabels = Object.keys(categoryData);
+    const categoryValues = categoryLabels.map(k => categoryData[k].total);
+    const categoryColors = categoryLabels.map(k => categoryData[k].color);
+
+    if (categoryLabels.length > 0) {
+        new Chart(document.getElementById('categoryChart'), {
+            type: 'doughnut',
+            data: {
+                labels: categoryLabels,
+                datasets: [{
+                    data: categoryValues,
+                    backgroundColor: categoryColors,
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'right',
+                        labels: {
+                            color: getComputedStyle(document.documentElement).getPropertyValue('--text-secondary'),
+                            padding: 15,
+                            font: { size: 12 }
+                        }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function (context) {
+                                return ` ₺${context.raw.toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    // Fetch monthly spending data
+    fetch('/api/stats')
+        .then(r => r.json())
+        .then(data => {
+            const monthlyData = data.monthly_spending || [];
+            const labels = monthlyData.map(m => {
+                const [year, month] = m.month.split('-');
+                return new Date(year, month - 1).toLocaleDateString('en-US', { month: 'short' });
+            });
+            const values = monthlyData.map(m => m.total);
+
+            new Chart(document.getElementById('spendingChart'), {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Spending (₺)',
+                        data: values,
+                        borderColor: '#6366f1',
+                        backgroundColor: 'rgba(99, 102, 241, 0.1)',
+                        fill: true,
+                        tension: 0.4,
+                        pointBackgroundColor: '#6366f1',
+                        pointRadius: 4,
+                        pointHoverRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        x: {
+                            grid: { display: false },
+                            ticks: { color: getComputedStyle(document.documentElement).getPropertyValue('--text-muted') }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            grid: { color: 'rgba(255,255,255,0.05)' },
+                            ticks: {
+                                color: getComputedStyle(document.documentElement).getPropertyValue('--text-muted'),
+                                callback: function (value) { return '₺' + value.toLocaleString(); }
+                            }
+                        }
+                    }
+                }
+            });
+        });
+</script>
+{% endblock %}

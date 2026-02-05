@@ -1,0 +1,174 @@
+{% extends "base.html" %}
+
+{% block title %}Yearly Report {{ year }} - Subscription Tracker{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Yearly Report {{ year }}</h1>
+    <div class="header-actions">
+        <form method="GET" action="{{ url_for('payments.yearly_report') }}" style="display:inline;">
+            <select name="year" onchange="this.form.submit()" class="year-select">
+                {% for y in available_years %}
+                <option value="{{ y }}" {% if year==y %}selected{% endif %}>{{ y }}</option>
+                {% endfor %}
+            </select>
+        </form>
+    </div>
+</div>
+
+<!-- Grand Total -->
+<div class="grand-total-card">
+    <div class="grand-total-icon">
+        <i data-lucide="bar-chart-2"></i>
+    </div>
+    <div class="grand-total-content">
+        <span class="grand-total-label">Total Spending in {{ year }}</span>
+        <span class="grand-total-value">₺{{ "%.2f"|format(grand_total) }}</span>
+    </div>
+</div>
+
+<div class="dashboard-grid">
+    <!-- Monthly Breakdown Chart -->
+    <div class="card chart-card">
+        <div class="card-header">
+            <h3><i data-lucide="bar-chart-3"></i> Monthly Breakdown</h3>
+        </div>
+        <div class="card-body">
+            <canvas id="monthlyChart"></canvas>
+        </div>
+    </div>
+
+    <!-- Category Breakdown Chart -->
+    <div class="card chart-card">
+        <div class="card-header">
+            <h3><i data-lucide="pie-chart"></i> By Category</h3>
+        </div>
+        <div class="card-body">
+            <canvas id="categoryChart"></canvas>
+        </div>
+    </div>
+</div>
+
+<!-- Monthly Table -->
+<div class="card">
+    <div class="card-header">
+        <h3><i data-lucide="calendar"></i> Monthly Details</h3>
+    </div>
+    <div class="table-responsive">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Month</th>
+                    <th>TRY (₺)</th>
+                    <th>USD ($)</th>
+                    <th>EUR (€)</th>
+                    <th>Total (TRY)</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% set months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'] %}
+                {% for month in range(1, 13) %}
+                <tr class="{% if monthly_totals[month].total_try == 0 %}row-empty{% endif %}">
+                    <td><strong>{{ months[month - 1] }}</strong></td>
+                    <td>₺{{ "%.2f"|format(monthly_totals[month].TRY) }}</td>
+                    <td>${{ "%.2f"|format(monthly_totals[month].USD) }}</td>
+                    <td>€{{ "%.2f"|format(monthly_totals[month].EUR) }}</td>
+                    <td class="amount">₺{{ "%.2f"|format(monthly_totals[month].total_try) }}</td>
+                </tr>
+                {% endfor %}
+                <tr class="total-row">
+                    <td><strong>Total</strong></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td class="amount"><strong>₺{{ "%.2f"|format(grand_total) }}</strong></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Monthly breakdown chart
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const monthlyData = {{ monthly_totals | tojson | safe }};
+    const monthlyValues = months.map((_, i) => monthlyData[i + 1].total_try);
+
+    new Chart(document.getElementById('monthlyChart'), {
+        type: 'bar',
+        data: {
+            labels: months,
+            datasets: [{
+                label: 'Spending (₺)',
+                data: monthlyValues,
+                backgroundColor: 'rgba(99, 102, 241, 0.6)',
+                borderColor: '#6366f1',
+                borderWidth: 1,
+                borderRadius: 4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+                x: {
+                    grid: { display: false },
+                    ticks: { color: getComputedStyle(document.documentElement).getPropertyValue('--text-muted') }
+                },
+                y: {
+                    beginAtZero: true,
+                    grid: { color: 'rgba(255,255,255,0.05)' },
+                    ticks: {
+                        color: getComputedStyle(document.documentElement).getPropertyValue('--text-muted'),
+                        callback: function (value) { return '₺' + value.toLocaleString(); }
+                    }
+                }
+            }
+        }
+    });
+
+    // Category breakdown chart
+    const categoryData = {{ category_totals | tojson | safe }};
+    const categoryLabels = Object.keys(categoryData);
+    const categoryValues = categoryLabels.map(k => categoryData[k].total);
+    const categoryColors = categoryLabels.map(k => categoryData[k].color);
+
+    if (categoryLabels.length > 0) {
+        new Chart(document.getElementById('categoryChart'), {
+            type: 'doughnut',
+            data: {
+                labels: categoryLabels,
+                datasets: [{
+                    data: categoryValues,
+                    backgroundColor: categoryColors,
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'right',
+                        labels: {
+                            color: getComputedStyle(document.documentElement).getPropertyValue('--text-secondary'),
+                            padding: 15,
+                            font: { size: 12 }
+                        }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function (context) {
+                                return ` ₺${context.raw.toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+</script>
+{% endblock %}

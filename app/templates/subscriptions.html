@@ -1,0 +1,234 @@
+{% extends "base.html" %}
+
+{% block title %}Subscriptions - Subscription Tracker{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Subscriptions</h1>
+    <div class="header-actions">
+        <a href="{{ url_for('subscriptions.add') }}" class="btn btn-primary">
+            <i data-lucide="plus"></i>
+            Add Subscription
+        </a>
+    </div>
+</div>
+
+<!-- Filters -->
+<div class="filters-bar">
+    <form class="filters-form" method="GET" action="{{ url_for('subscriptions.index') }}">
+        <div class="filter-group">
+            <label>Status</label>
+            <select name="status" onchange="this.form.submit()">
+                <option value="all" {% if filter_status=='all' %}selected{% endif %}>All</option>
+                <option value="active" {% if filter_status=='active' %}selected{% endif %}>Active</option>
+                <option value="inactive" {% if filter_status=='inactive' %}selected{% endif %}>Inactive</option>
+                <option value="overdue" {% if filter_status=='overdue' %}selected{% endif %}>Overdue</option>
+            </select>
+        </div>
+        <div class="filter-group">
+            <label>Category</label>
+            <select name="category" onchange="this.form.submit()">
+                <option value="">All Categories</option>
+                {% for cat in categories %}
+                <option value="{{ cat.id }}" {% if filter_category==cat.id %}selected{% endif %}>{{ cat.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="filter-group">
+            <label>Currency</label>
+            <select name="currency" onchange="this.form.submit()">
+                <option value="all" {% if filter_currency=='all' %}selected{% endif %}>All</option>
+                <option value="TRY" {% if filter_currency=='TRY' %}selected{% endif %}>TRY (₺)</option>
+                <option value="USD" {% if filter_currency=='USD' %}selected{% endif %}>USD ($)</option>
+                <option value="EUR" {% if filter_currency=='EUR' %}selected{% endif %}>EUR (€)</option>
+            </select>
+        </div>
+    </form>
+</div>
+
+<!-- Desktop Table View -->
+<div class="card desktop-only">
+    <div class="table-responsive">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Category</th>
+                    <th>Amount</th>
+                    <th>Cycle</th>
+                    <th>Next Due</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if subscriptions %}
+                {% for sub in subscriptions %}
+                <tr
+                    class="{% if sub.is_overdue %}row-overdue{% endif %}{% if not sub.is_active %}row-inactive{% endif %}">
+                    <td>
+                        <div class="sub-name">
+                            {% if sub.favicon_url %}
+                            <img src="{{ sub.favicon_url }}" alt="" class="sub-favicon"
+                                onerror="this.style.display='none'">
+                            {% else %}
+                            <i data-lucide="{{ sub.icon }}" style="width:20px;height:20px;color:var(--text-muted);"></i>
+                            {% endif %}
+                            <span>{{ sub.name }}</span>
+                            {% if sub.url %}
+                            <a href="{{ sub.url }}" target="_blank" class="sub-link" title="Visit site">
+                                <i data-lucide="external-link"></i>
+                            </a>
+                            {% endif %}
+                        </div>
+                    </td>
+                    <td>
+                        {% if sub.category %}
+                        <span class="category-badge"
+                            style="background: {{ sub.category.color }}20; color: {{ sub.category.color }};">
+                            {{ sub.category.name }}
+                        </span>
+                        {% else %}
+                        <span class="text-muted">—</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <span class="amount">
+                            {{ {'TRY': '₺', 'USD': '$', 'EUR': '€'}[sub.currency] }}{{ "%.2f"|format(sub.amount) }}
+                            {% if sub.is_variable %}
+                            <span class="variable-badge" title="Variable amount">~</span>
+                            {% endif %}
+                        </span>
+                        {% if sub.currency != 'TRY' %}
+                        <span class="amount-converted">
+                            ≈ ₺{{ "%.2f"|format(sub.amount * rates.get(sub.currency, 1)) }}
+                        </span>
+                        {% endif %}
+                    </td>
+                    <td class="billing-cycle">{{ sub.billing_cycle|capitalize }}</td>
+                    <td>
+                        {% if sub.next_due_date %}
+                        <span class="due-date {% if sub.is_overdue %}overdue{% endif %}">
+                            {{ sub.next_due_date.strftime('%b %d, %Y') }}
+                            {% if sub.is_overdue %}
+                            <span class="overdue-badge">Overdue</span>
+                            {% elif sub.days_until_due <= 3 %} <span class="soon-badge">Soon</span>
+                        {% endif %}
+                        </span>
+                        {% else %}
+                        <span class="text-muted">Not set</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <span
+                            class="status-badge {% if sub.is_active %}status-active{% else %}status-inactive{% endif %}">
+                            {{ 'Active' if sub.is_active else 'Inactive' }}
+                        </span>
+                    </td>
+                    <td class="actions">
+                        {% if sub.is_active and sub.next_due_date %}
+                        <form action="{{ url_for('subscriptions.mark_paid', id=sub.id) }}" method="POST"
+                            style="display:inline;">
+                            <button type="submit" class="btn btn-sm btn-success" title="Mark as Paid">
+                                <i data-lucide="check"></i>
+                            </button>
+                        </form>
+                        {% endif %}
+                        <a href="{{ url_for('subscriptions.edit', id=sub.id) }}" class="btn btn-sm btn-secondary"
+                            title="Edit">
+                            <i data-lucide="edit-2"></i>
+                        </a>
+                        <form action="{{ url_for('subscriptions.toggle_active', id=sub.id) }}" method="POST"
+                            style="display:inline;">
+                            <button type="submit" class="btn btn-sm btn-secondary"
+                                title="{{ 'Deactivate' if sub.is_active else 'Activate' }}">
+                                <i data-lucide="{{ 'pause' if sub.is_active else 'play' }}"></i>
+                            </button>
+                        </form>
+                        <form action="{{ url_for('subscriptions.delete', id=sub.id) }}" method="POST"
+                            style="display:inline;" onsubmit="return confirmDelete(this, 'Subscription');">
+                            <button type="submit" class="btn btn-sm btn-danger" title="Delete">
+                                <i data-lucide="trash-2"></i>
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+                {% else %}
+                <tr>
+                    <td colspan="7" class="empty-table">
+                        <i data-lucide="inbox"></i>
+                        <p>No subscriptions found</p>
+                        <a href="{{ url_for('subscriptions.add') }}" class="btn btn-primary">Add Your First
+                            Subscription</a>
+                    </td>
+                </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Mobile Card View -->
+<div class="mobile-cards mobile-only">
+    {% if subscriptions %}
+    {% for sub in subscriptions %}
+    <div class="mobile-card {% if sub.is_overdue %}overdue{% endif %}{% if not sub.is_active %}inactive{% endif %}">
+        <div class="mobile-card-header">
+            <div class="mobile-card-title">
+                {% if sub.favicon_url %}
+                <img src="{{ sub.favicon_url }}" alt="" class="sub-favicon" onerror="this.style.display='none'">
+                {% else %}
+                <i data-lucide="{{ sub.icon }}" style="width:24px;height:24px;color:var(--text-muted);"></i>
+                {% endif %}
+                <span>{{ sub.name }}</span>
+            </div>
+            <span class="mobile-card-amount">
+                {{ {'TRY': '₺', 'USD': '$', 'EUR': '€'}[sub.currency] }}{{ "%.2f"|format(sub.amount) }}
+                {% if sub.is_variable %}~{% endif %}
+            </span>
+        </div>
+        <div class="mobile-card-meta">
+            {% if sub.category %}
+            <span class="category-badge"
+                style="background: {{ sub.category.color }}20; color: {{ sub.category.color }};">
+                {{ sub.category.name }}
+            </span>
+            {% endif %}
+            <span class="billing-cycle">{{ sub.billing_cycle|capitalize }}</span>
+            {% if sub.next_due_date %}
+            <span class="due-date {% if sub.is_overdue %}overdue{% endif %}">
+                {{ sub.next_due_date.strftime('%b %d') }}
+                {% if sub.is_overdue %}<span class="overdue-badge">!</span>{% endif %}
+            </span>
+            {% endif %}
+        </div>
+        <div class="mobile-card-actions">
+            {% if sub.is_active and sub.next_due_date %}
+            <form action="{{ url_for('subscriptions.mark_paid', id=sub.id) }}" method="POST" style="display:inline;">
+                <button type="submit" class="btn btn-sm btn-success">
+                    <i data-lucide="check"></i> Pay
+                </button>
+            </form>
+            {% endif %}
+            <a href="{{ url_for('subscriptions.edit', id=sub.id) }}" class="btn btn-sm btn-secondary">
+                <i data-lucide="edit-2"></i> Edit
+            </a>
+            <form action="{{ url_for('subscriptions.delete', id=sub.id) }}" method="POST" style="display:inline;"
+                onsubmit="return confirmDelete(this, 'Subscription');">
+                <button type="submit" class="btn btn-sm btn-danger">
+                    <i data-lucide="trash-2"></i>
+                </button>
+            </form>
+        </div>
+    </div>
+    {% endfor %}
+    {% else %}
+    <div class="empty-state-card">
+        <i data-lucide="inbox"></i>
+        <p>No subscriptions found</p>
+        <a href="{{ url_for('subscriptions.add') }}" class="btn btn-primary">Add Subscription</a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

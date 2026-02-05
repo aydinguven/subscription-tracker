@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+
+{% block title %}Payment Methods - Subscription Tracker{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Payment Methods</h1>
+    <div class="header-actions">
+        <a href="{{ url_for('payment_methods.add') }}" class="btn btn-primary">
+            <i data-lucide="plus"></i>
+            Add Method
+        </a>
+    </div>
+</div>
+
+<div class="card">
+    <div class="table-responsive">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Icon</th>
+                    <th>Name</th>
+                    <th>Type</th>
+                    <th>Identifier</th>
+                    <th>Default</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if methods %}
+                {% for method in methods %}
+                <tr>
+                    <td>
+                        <div class="icon-box" style="background: {{ method.color }}20; color: {{ method.color }};">
+                            <i data-lucide="{{ method.icon }}"></i>
+                        </div>
+                    </td>
+                    <td><strong>{{ method.name }}</strong></td>
+                    <td>
+                        {% for type_id, type_name, _ in method_types %}
+                        {% if type_id == method.method_type %}{{ type_name }}{% endif %}
+                        {% endfor %}
+                    </td>
+                    <td>{{ method.identifier or '—' }}</td>
+                    <td>
+                        {% if method.is_default %}
+                        <span class="status-badge status-active">Default</span>
+                        {% else %}
+                        <form action="{{ url_for('payment_methods.set_default', id=method.id) }}" method="POST"
+                            style="display:inline;">
+                            <button type="submit" class="btn btn-sm btn-secondary">Set Default</button>
+                        </form>
+                        {% endif %}
+                    </td>
+                    <td class="actions">
+                        <a href="{{ url_for('payment_methods.edit', id=method.id) }}" class="btn btn-sm btn-secondary"
+                            title="Edit">
+                            <i data-lucide="edit-2"></i>
+                        </a>
+                        <form action="{{ url_for('payment_methods.delete', id=method.id) }}" method="POST"
+                            style="display:inline;" onsubmit="return confirmDelete(this, 'Payment Method');">
+                            <button type="submit" class="btn btn-sm btn-danger" title="Delete">
+                                <i data-lucide="trash-2"></i>
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+                {% else %}
+                <tr>
+                    <td colspan="6" class="empty-table">
+                        <i data-lucide="wallet"></i>
+                        <p>No payment methods yet</p>
+                        <a href="{{ url_for('payment_methods.add') }}" class="btn btn-primary">Add Payment Method</a>
+                    </td>
+                </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

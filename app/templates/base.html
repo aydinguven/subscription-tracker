@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Subscription Tracker{% endblock %}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/themes/dark.css">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    <link rel="stylesheet"
+        href="{{ url_for('static', filename='css/style.css') }}?v={{ request.args.get('v') or range(1000, 9999) | random }}">
+    <style>
+        /* HTMX transitions */
+        .htmx-request .main-content>* {
+            opacity: 0.5;
+            transition: opacity 0.15s ease;
+        }
+
+        .main-content>* {
+            animation: fadeIn 0.2s ease;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(5px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+    </style>
+    <script>
+        // Set theme immediately to prevent flash
+        (function () {
+            const savedTheme = localStorage.getItem('theme') || 'dark';
+            document.documentElement.setAttribute('data-theme', savedTheme);
+            if (localStorage.getItem('mobileMode') === 'true') {
+                document.body.classList.add('mobile-mode');
+            }
+        })();
+    </script>
+</head>
+
+<body hx-boost="true" hx-target=".main-content" hx-select=".main-content" hx-swap="innerHTML show:top">
+    <div class="app-container">
+        <!-- Mobile Menu Toggle -->
+        <button class="mobile-menu-toggle" style="display: none;" onclick="toggleMobileMenu()">
+            <i data-lucide="menu"></i>
+        </button>
+
+        <!-- Sidebar Backdrop (for mobile) -->
+        <div class="sidebar-backdrop" id="sidebarBackdrop" onclick="closeMobileMenu()"></div>
+
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <i data-lucide="wallet"></i>
+                    <span>SubTracker</span>
+                </div>
+            </div>
+            <nav class="sidebar-nav">
+                <a href="{{ url_for('dashboard.index') }}"
+                    class="nav-item {% if request.endpoint == 'dashboard.index' %}active{% endif %}">
+                    <i data-lucide="layout-dashboard"></i>
+                    <span>Dashboard</span>
+                </a>
+                <a href="{{ url_for('subscriptions.index') }}"
+                    class="nav-item {% if 'subscriptions' in request.endpoint %}active{% endif %}">
+                    <i data-lucide="repeat"></i>
+                    <span>Subscriptions</span>
+                </a>
+                <a href="{{ url_for('payments.index') }}"
+                    class="nav-item {% if request.endpoint == 'payments.index' or request.endpoint == 'payments.add' %}active{% endif %}">
+                    <i data-lucide="credit-card"></i>
+                    <span>Payments</span>
+                </a>
+                <a href="{{ url_for('payments.yearly_report') }}"
+                    class="nav-item {% if request.endpoint == 'payments.yearly_report' %}active{% endif %}">
+                    <i data-lucide="bar-chart-3"></i>
+                    <span>Yearly Report</span>
+                </a>
+                <a href="{{ url_for('categories.index') }}"
+                    class="nav-item {% if 'categories' in request.endpoint %}active{% endif %}">
+                    <i data-lucide="tags"></i>
+                    <span>Categories</span>
+                </a>
+                <a href="{{ url_for('payment_methods.index') }}"
+                    class="nav-item {% if 'payment_methods' in request.endpoint %}active{% endif %}">
+                    <i data-lucide="wallet"></i>
+                    <span>Payment Methods</span>
+                </a>
+                <div class="nav-divider"></div>
+                <a href="{{ url_for('data.export_data') }}"
+                    class="nav-item {% if request.endpoint == 'data.export_data' %}active{% endif %}">
+                    <i data-lucide="download"></i>
+                    <span>Export</span>
+                </a>
+                <a href="{{ url_for('data.import_data') }}"
+                    class="nav-item {% if request.endpoint == 'data.import_data' %}active{% endif %}">
+                    <i data-lucide="upload"></i>
+                    <span>Import</span>
+                </a>
+            </nav>
+            <div class="sidebar-footer">
+                <button class="theme-toggle" onclick="toggleTheme()">
+                    <i data-lucide="sun" id="theme-icon-light" style="display: none;"></i>
+                    <i data-lucide="moon" id="theme-icon-dark"></i>
+                    <span id="theme-label">Light Mode</span>
+                </button>
+                <button class="mobile-mode-toggle" onclick="toggleMobileMode()">
+                    <i data-lucide="smartphone"></i>
+                    <span id="mobile-mode-label">Mobile Mode</span>
+                </button>
+                <div class="exchange-rates">
+                    <span class="rates-label">Exchange Rates</span>
+                    <div class="rates-values" id="exchange-rates">
+                        <span>Loading...</span>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+            {% for category, message in messages %}
+            <div class="alert alert-{{ category }}">
+                <i
+                    data-lucide="{% if category == 'success' %}check-circle{% elif category == 'error' %}alert-circle{% else %}info{% endif %}"></i>
+                <span>{{ message }}</span>
+                <button class="alert-close" onclick="this.parentElement.remove()">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            {% endfor %}
+            {% endif %}
+            {% endwith %}
+
+            {% block content %}{% endblock %}
+        </main>
+
+        <!-- Bottom Navigation (Mobile) -->
+        <nav class="bottom-nav">
+            <div class="bottom-nav-items">
+                <a href="{{ url_for('dashboard.index') }}"
+                    class="bottom-nav-item {% if request.endpoint == 'dashboard.index' %}active{% endif %}">
+                    <i data-lucide="layout-dashboard"></i>
+                    <span>Home</span>
+                </a>
+                <a href="{{ url_for('subscriptions.index') }}"
+                    class="bottom-nav-item {% if 'subscriptions' in request.endpoint %}active{% endif %}">
+                    <i data-lucide="repeat"></i>
+                    <span>Subs</span>
+                </a>
+                {% if 'subscriptions' in request.endpoint %}
+                <a href="{{ url_for('subscriptions.add') }}" class="bottom-nav-add" title="Add Subscription">
+                    <i data-lucide="plus"></i>
+                </a>
+                {% else %}
+                <a href="{{ url_for('payments.add') }}" class="bottom-nav-add" title="Add Payment">
+                    <i data-lucide="plus"></i>
+                </a>
+                {% endif %}
+                <a href="{{ url_for('payments.index') }}"
+                    class="bottom-nav-item {% if request.endpoint == 'payments.index' %}active{% endif %}">
+                    <i data-lucide="credit-card"></i>
+                    <span>Payments</span>
+                </a>
+                <button type="button" class="bottom-nav-item" id="moreMenuButton">
+                    <i data-lucide="menu"></i>
+                    <span>More</span>
+                </button>
+            </div>
+        </nav>
+
+        <!-- Custom Confirmation Dialog -->
+        <div class="confirm-dialog-overlay" id="confirmDialog">
+            <div class="confirm-dialog">
+                <div class="confirm-dialog-icon">
+                    <i data-lucide="alert-triangle"></i>
+                </div>
+                <h3 class="confirm-dialog-title" id="confirmDialogTitle">Confirm Action</h3>
+                <p class="confirm-dialog-message" id="confirmDialogMessage">Are you sure you want to continue?</p>
+                <div class="confirm-dialog-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeConfirmDialog()">Cancel</button>
+                    <button type="button" class="btn btn-danger" id="confirmDialogConfirm">Delete</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+    <script>
+        // Theme management - update UI elements for current theme
+        function updateThemeUI() {
+            const theme = document.documentElement.getAttribute('data-theme') || 'dark';
+            const lightIcon = document.getElementById('theme-icon-light');
+            const darkIcon = document.getElementById('theme-icon-dark');
+            const label = document.getElementById('theme-label');
+
+            if (lightIcon && darkIcon && label) {
+                if (theme === 'light') {
+                    lightIcon.style.display = 'none';
+                    darkIcon.style.display = 'block';
+                    label.textContent = 'Dark Mode';
+                } else {
+                    lightIcon.style.display = 'block';
+                    darkIcon.style.display = 'none';
+                    label.textContent = 'Light Mode';
+                }
+            }
+        }
+
+        function toggleTheme() {
+            const currentTheme = document.documentElement.getAttribute('data-theme') || 'dark';
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            document.documentElement.setAttribute('data-theme', newTheme);
+            localStorage.setItem('theme', newTheme);
+            updateThemeUI();
+            lucide.createIcons();
+        }
+
+        // Update UI elements (theme already set in head)
+        updateThemeUI();
+
+        // Initialize Lucide icons
+        lucide.createIcons();
+
+        // Re-initialize icons and close mobile menu after HTMX swaps content
+        document.body.addEventListener('htmx:afterSwap', function (event) {
+            lucide.createIcons();
+            closeMobileMenu();
+        });
+
+        // Update active nav state after HTMX navigation
+        document.body.addEventListener('htmx:pushedIntoHistory', function (event) {
+            updateActiveNav(event.detail.path);
+        });
+
+        function updateActiveNav(path) {
+            // Update sidebar nav
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.classList.remove('active');
+                if (item.getAttribute('href') === path) {
+                    item.classList.add('active');
+                }
+            });
+            // Update bottom nav
+            document.querySelectorAll('.bottom-nav-item').forEach(item => {
+                item.classList.remove('active');
+                const href = item.getAttribute('href');
+                if (href === path || (href && path.startsWith(href) && href !== '/')) {
+                    item.classList.add('active');
+                }
+            });
+        }
+        // Mobile menu functions
+        function toggleMobileMenu() {
+            var sidebar = document.getElementById('sidebar');
+            var backdrop = document.getElementById('sidebarBackdrop');
+            if (sidebar && backdrop) {
+                sidebar.classList.toggle('open');
+                backdrop.classList.toggle('show');
+                if (sidebar.classList.contains('open')) {
+                    document.body.style.overflow = 'hidden';
+                } else {
+                    document.body.style.overflow = '';
+                }
+            }
+        }
+
+        function closeMobileMenu() {
+            var sidebar = document.getElementById('sidebar');
+            var backdrop = document.getElementById('sidebarBackdrop');
+            if (sidebar && backdrop) {
+                sidebar.classList.remove('open');
+                backdrop.classList.remove('show');
+                document.body.style.overflow = '';
+            }
+        }
+
+        // Attach event listener to More menu button
+        var moreBtn = document.getElementById('moreMenuButton');
+        if (moreBtn) {
+            moreBtn.addEventListener('click', function (e) {
+                e.preventDefault();
+                e.stopPropagation();
+                toggleMobileMenu();
+            });
+            moreBtn.addEventListener('touchend', function (e) {
+                e.preventDefault();
+                e.stopPropagation();
+                toggleMobileMenu();
+            });
+        }
+
+        // Custom Confirmation Dialog functions
+        let pendingConfirmCallback = null;
+
+        function showConfirmDialog(title, message, onConfirm) {
+            const overlay = document.getElementById('confirmDialog');
+            document.getElementById('confirmDialogTitle').textContent = title;
+            document.getElementById('confirmDialogMessage').textContent = message;
+            pendingConfirmCallback = onConfirm;
+            overlay.classList.add('show');
+            document.body.style.overflow = 'hidden';
+            lucide.createIcons();
+        }
+
+        function closeConfirmDialog() {
+            const overlay = document.getElementById('confirmDialog');
+            overlay.classList.remove('show');
+            document.body.style.overflow = '';
+            pendingConfirmCallback = null;
+        }
+
+        document.getElementById('confirmDialogConfirm').addEventListener('click', function () {
+            if (pendingConfirmCallback) {
+                pendingConfirmCallback();
+            }
+            closeConfirmDialog();
+        });
+
+        document.getElementById('confirmDialog').addEventListener('click', function (e) {
+            if (e.target === this) {
+                closeConfirmDialog();
+            }
+        });
+
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape') {
+                closeConfirmDialog();
+            }
+        });
+
+        function confirmDelete(form, itemName) {
+            showConfirmDialog(
+                'Delete ' + itemName + '?',
+                'This action cannot be undone. Are you sure you want to delete this ' + itemName.toLowerCase() + '?',
+                function () {
+                    form.submit();
+                }
+            );
+            return false;
+        }
+
+        // Mobile mode toggle
+        function initMobileMode() {
+            const savedMode = localStorage.getItem('mobileMode') === 'true';
+            if (savedMode) {
+                document.body.classList.add('mobile-mode');
+                updateMobileModeLabel(true);
+            }
+        }
+
+        function toggleMobileMode() {
+            const isEnabled = document.body.classList.toggle('mobile-mode');
+            localStorage.setItem('mobileMode', isEnabled);
+            updateMobileModeLabel(isEnabled);
+            lucide.createIcons();
+        }
+
+        function updateMobileModeLabel(isEnabled) {
+            const label = document.getElementById('mobile-mode-label');
+            if (label) {
+                label.textContent = isEnabled ? 'Desktop Mode' : 'Mobile Mode';
+            }
+        }
+
+        initMobileMode();
+
+        // Close menu when clicking nav links on mobile
+        document.querySelectorAll('.sidebar .nav-item').forEach(link => {
+            link.addEventListener('click', () => {
+                if (window.innerWidth <= 768) {
+                    closeMobileMenu();
+                }
+            });
+        });
+
+        // Load exchange rates
+        fetch('/api/rates')
+            .then(r => r.json())
+            .then(data => {
+                const ratesEl = document.getElementById('exchange-rates');
+                if (data.rates) {
+                    ratesEl.innerHTML = `
+                        <span>$1 = ₺${data.rates.USD?.toFixed(2) || 'N/A'}</span>
+                        <span>€1 = ₺${data.rates.EUR?.toFixed(2) || 'N/A'}</span>
+                    `;
+                }
+            })
+            .catch(() => {
+                document.getElementById('exchange-rates').innerHTML = '<span>Unable to load</span>';
+            });
+
+        // Initialize date pickers
+        const isTouchDevice = window.matchMedia('(pointer: coarse)').matches;
+
+        document.querySelectorAll('input[type="date"]').forEach(input => {
+            if (isTouchDevice) {
+                input.classList.add('native-date-picker');
+                if (input.value) {
+                    input.setAttribute('data-has-value', 'true');
+                }
+                input.addEventListener('change', () => {
+                    input.setAttribute('data-has-value', input.value ? 'true' : 'false');
+                });
+            } else {
+                const currentValue = input.value;
+                input.type = 'text';
+                input.classList.add('date-picker');
+
+                let defaultDate = null;
+                if (currentValue) {
+                    const parts = currentValue.split('-');
+                    if (parts.length === 3) {
+                        defaultDate = new Date(parts[0], parts[1] - 1, parts[2]);
+                    }
+                }
+
+                flatpickr(input, {
+                    dateFormat: 'd M y',
+                    altInput: true,
+                    altFormat: 'D d M y',
+                    defaultDate: defaultDate,
+                    theme: document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark',
+                    onChange: function (selectedDates, dateStr, instance) {
+                        if (selectedDates[0]) {
+                            instance.element.dataset.isoDate = selectedDates[0].toISOString().split('T')[0];
+                        }
+                    }
+                });
+            }
+        });
+    </script>
+    {% block scripts %}{% endblock %}
+</body>
+
+</html>

@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+
+{% block title %}Export Data - Subscription Tracker{% endblock %}
+
+{% block content %}
+<a href="{{ url_for('dashboard.index') }}" class="back-link">
+    <i data-lucide="arrow-left"></i>
+    Back to Dashboard
+</a>
+
+<div class="page-header">
+    <h1>Export Data</h1>
+</div>
+
+<div class="card form-card">
+    <div class="card-body">
+        <p class="form-intro">Select what data you want to export. The data will be downloaded as a JSON file.</p>
+
+        <form method="POST" class="form">
+            <div class="export-options">
+                <label class="checkbox-card">
+                    <input type="checkbox" name="categories" checked>
+                    <div class="checkbox-card-content">
+                        <i data-lucide="tags"></i>
+                        <span class="checkbox-card-title">Categories</span>
+                        <span class="checkbox-card-count">{{ stats.categories }} items</span>
+                    </div>
+                </label>
+
+                <label class="checkbox-card">
+                    <input type="checkbox" name="payment_methods" checked>
+                    <div class="checkbox-card-content">
+                        <i data-lucide="wallet"></i>
+                        <span class="checkbox-card-title">Payment Methods</span>
+                        <span class="checkbox-card-count">{{ stats.payment_methods }} items</span>
+                    </div>
+                </label>
+
+                <label class="checkbox-card">
+                    <input type="checkbox" name="subscriptions" checked>
+                    <div class="checkbox-card-content">
+                        <i data-lucide="repeat"></i>
+                        <span class="checkbox-card-title">Subscriptions</span>
+                        <span class="checkbox-card-count">{{ stats.subscriptions }} items</span>
+                    </div>
+                </label>
+
+                <label class="checkbox-card">
+                    <input type="checkbox" name="payments" checked>
+                    <div class="checkbox-card-content">
+                        <i data-lucide="credit-card"></i>
+                        <span class="checkbox-card-title">Payments</span>
+                        <span class="checkbox-card-count">{{ stats.payments }} items</span>
+                    </div>
+                </label>
+            </div>
+
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary">
+                    <i data-lucide="download"></i>
+                    Download Export
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

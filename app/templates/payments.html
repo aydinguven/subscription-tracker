@@ -1,0 +1,211 @@
+{% extends "base.html" %}
+
+{% block title %}Payments - Subscription Tracker{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Payments</h1>
+    <div class="header-actions">
+        <a href="{{ url_for('payments.add') }}" class="btn btn-primary">
+            <i data-lucide="plus"></i>
+            Add Payment
+        </a>
+    </div>
+</div>
+
+<!-- Filters -->
+<div class="filters-bar">
+    <form class="filters-form" method="GET" action="{{ url_for('payments.index') }}">
+        <div class="filter-group">
+            <label>Year</label>
+            <select name="year" onchange="this.form.submit()">
+                {% for y in available_years %}
+                <option value="{{ y }}" {% if filter_year==y %}selected{% endif %}>{{ y }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="filter-group">
+            <label>Subscription</label>
+            <select name="subscription" onchange="this.form.submit()">
+                <option value="">All Subscriptions</option>
+                {% for sub in subscriptions %}
+                <option value="{{ sub.id }}" {% if filter_subscription==sub.id %}selected{% endif %}>{{ sub.name }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="filter-group">
+            <label>Currency</label>
+            <select name="currency" onchange="this.form.submit()">
+                <option value="all" {% if filter_currency=='all' %}selected{% endif %}>All</option>
+                <option value="TRY" {% if filter_currency=='TRY' %}selected{% endif %}>TRY (₺)</option>
+                <option value="USD" {% if filter_currency=='USD' %}selected{% endif %}>USD ($)</option>
+                <option value="EUR" {% if filter_currency=='EUR' %}selected{% endif %}>EUR (€)</option>
+            </select>
+        </div>
+    </form>
+</div>
+
+<!-- Totals Bar -->
+<div class="totals-bar">
+    {% for curr, total in currency_totals.items() %}
+    <div class="total-item">
+        <span class="total-label">{{ curr }} Total</span>
+        <span class="total-value">{{ {'TRY': '₺', 'USD': '$', 'EUR': '€'}[curr] }}{{ "%.2f"|format(total) }}</span>
+    </div>
+    {% endfor %}
+    <div class="total-item grand-total">
+        <span class="total-label">Grand Total (TRY)</span>
+        <span class="total-value">₺{{ "%.2f"|format(grand_total) }}</span>
+    </div>
+</div>
+
+<!-- Desktop Table View -->
+<div class="card desktop-only">
+    <div class="table-responsive">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Subscription</th>
+                    <th>Amount</th>
+                    <th>Discount</th>
+                    <th>Payment Method</th>
+                    <th>Notes</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if payments %}
+                {% for payment in payments %}
+                <tr>
+                    <td>{{ payment.paid_date.strftime('%b %d, %Y') }}</td>
+                    <td>
+                        {% if payment.subscription %}
+                        <div class="sub-name">
+                            {% if payment.subscription.favicon_url %}
+                            <img src="{{ payment.subscription.favicon_url }}" alt="" class="sub-favicon"
+                                onerror="this.style.display='none'">
+                            {% endif %}
+                            {{ payment.subscription.name }}
+                        </div>
+                        {% else %}
+                        <span class="text-muted">Unknown</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <span class="amount">
+                            {{ {'TRY': '₺', 'USD': '$', 'EUR': '€'}[payment.currency] }}{{ "%.2f"|format(payment.amount)
+                            }}
+                        </span>
+                        {% if payment.currency != 'TRY' %}
+                        <span class="amount-converted">
+                            ≈ ₺{{ "%.2f"|format(payment.amount * rates.get(payment.currency, 1)) }}
+                        </span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if payment.discount > 0 %}
+                        <span class="discount-badge">
+                            -{{ {'TRY': '₺', 'USD': '$', 'EUR': '€'}[payment.currency] }}{{
+                            "%.2f"|format(payment.discount) }}
+                            ({{ payment.discount_percent }}%)
+                        </span>
+                        {% else %}
+                        <span class="text-muted">—</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if payment.payment_method %}
+                        <span class="payment-method-badge"
+                            style="background: {{ payment.payment_method.color }}20; color: {{ payment.payment_method.color }};">
+                            {{ payment.payment_method.display_name }}
+                        </span>
+                        {% else %}
+                        <span class="text-muted">—</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if payment.notes %}
+                        <span class="notes-preview" title="{{ payment.notes }}">{{ payment.notes[:30] }}{% if
+                            payment.notes|length > 30 %}...{% endif %}</span>
+                        {% else %}
+                        <span class="text-muted">—</span>
+                        {% endif %}
+                    </td>
+                    <td class="actions">
+                        <form action="{{ url_for('payments.delete', id=payment.id) }}" method="POST"
+                            style="display:inline;" onsubmit="return confirmDelete(this, 'Payment');">
+                            <button type="submit" class="btn btn-sm btn-danger" title="Delete">
+                                <i data-lucide="trash-2"></i>
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+                {% else %}
+                <tr>
+                    <td colspan="7" class="empty-table">
+                        <i data-lucide="credit-card"></i>
+                        <p>No payments found for this period</p>
+                        <a href="{{ url_for('payments.add') }}" class="btn btn-primary">Record a Payment</a>
+                    </td>
+                </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Mobile Card View -->
+<div class="mobile-cards mobile-only">
+    {% if payments %}
+    {% for payment in payments %}
+    <div class="mobile-card">
+        <div class="mobile-card-header">
+            <div class="mobile-card-title">
+                {% if payment.subscription %}
+                {% if payment.subscription.favicon_url %}
+                <img src="{{ payment.subscription.favicon_url }}" alt="" class="sub-favicon"
+                    onerror="this.style.display='none'">
+                {% endif %}
+                <span>{{ payment.subscription.name }}</span>
+                {% else %}
+                <span>Unknown</span>
+                {% endif %}
+            </div>
+            <span class="mobile-card-amount">
+                {{ {'TRY': '₺', 'USD': '$', 'EUR': '€'}[payment.currency] }}{{ "%.2f"|format(payment.amount) }}
+            </span>
+        </div>
+        <div class="mobile-card-meta">
+            <span class="date">{{ payment.paid_date.strftime('%b %d, %Y') }}</span>
+            {% if payment.discount > 0 %}
+            <span class="discount-badge">-{{ payment.discount_percent }}%</span>
+            {% endif %}
+            {% if payment.payment_method %}
+            <span class="payment-method-badge"
+                style="background: {{ payment.payment_method.color }}20; color: {{ payment.payment_method.color }};">
+                {{ payment.payment_method.name }}
+            </span>
+            {% endif %}
+        </div>
+        <div class="mobile-card-actions">
+            <form action="{{ url_for('payments.delete', id=payment.id) }}" method="POST" style="display:inline;"
+                onsubmit="return confirmDelete(this, 'Payment');">
+                <button type="submit" class="btn btn-sm btn-danger">
+                    <i data-lucide="trash-2"></i> Delete
+                </button>
+            </form>
+        </div>
+    </div>
+    {% endfor %}
+    {% else %}
+    <div class="empty-state-card">
+        <i data-lucide="credit-card"></i>
+        <p>No payments found</p>
+        <a href="{{ url_for('payments.add') }}" class="btn btn-primary">Record a Payment</a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
