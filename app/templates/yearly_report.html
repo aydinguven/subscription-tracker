@@ -91,34 +91,57 @@
 
 {% block scripts %}
 <script>
-    // Monthly breakdown chart
+    // Monthly breakdown chart with stacked bars for billing cycles
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     const monthlyData = {{ monthly_totals | tojson | safe }};
-    const monthlyValues = months.map((_, i) => monthlyData[i + 1].total_try);
+    const monthlyValues = months.map((_, i) => monthlyData[i + 1].monthly_try);
+    const otherValues = months.map((_, i) => monthlyData[i + 1].other_try);
 
     new Chart(document.getElementById('monthlyChart'), {
         type: 'bar',
         data: {
             labels: months,
-            datasets: [{
-                label: 'Spending (₺)',
-                data: monthlyValues,
-                backgroundColor: 'rgba(99, 102, 241, 0.6)',
-                borderColor: '#6366f1',
-                borderWidth: 1,
-                borderRadius: 4
-            }]
+            datasets: [
+                {
+                    label: 'Monthly Subs',
+                    data: monthlyValues,
+                    backgroundColor: 'rgba(99, 102, 241, 0.7)',
+                    borderColor: '#6366f1',
+                    borderWidth: 1,
+                    borderRadius: 4
+                },
+                {
+                    label: 'Yearly/Quarterly',
+                    data: otherValues,
+                    backgroundColor: 'rgba(20, 184, 166, 0.7)',
+                    borderColor: '#14b8a6',
+                    borderWidth: 1,
+                    borderRadius: 4
+                }
+            ]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            plugins: { legend: { display: false } },
+            plugins: {
+                legend: {
+                    display: true,
+                    position: 'top',
+                    labels: {
+                        color: getComputedStyle(document.documentElement).getPropertyValue('--text-secondary'),
+                        padding: 15,
+                        font: { size: 12 }
+                    }
+                }
+            },
             scales: {
                 x: {
+                    stacked: true,
                     grid: { display: false },
                     ticks: { color: getComputedStyle(document.documentElement).getPropertyValue('--text-muted') }
                 },
                 y: {
+                    stacked: true,
                     beginAtZero: true,
                     grid: { color: 'rgba(255,255,255,0.05)' },
                     ticks: {

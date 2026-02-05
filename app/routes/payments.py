@@ -156,17 +156,29 @@ def yearly_report():
         extract('year', Payment.paid_date) == year
     ).all()
     
-    # Monthly breakdown
+    # Monthly breakdown with billing cycle separation
     monthly_totals = {}
     for month in range(1, 13):
-        monthly_totals[month] = {'TRY': 0, 'USD': 0, 'EUR': 0, 'total_try': 0}
+        monthly_totals[month] = {
+            'TRY': 0, 'USD': 0, 'EUR': 0, 'total_try': 0,
+            'monthly_try': 0,  # Monthly billing cycle payments
+            'other_try': 0     # Yearly, quarterly, etc. payments
+        }
     
     for payment in payments:
         month = payment.paid_date.month
         monthly_totals[month][payment.currency] = monthly_totals[month].get(payment.currency, 0) + payment.amount
-        monthly_totals[month]['total_try'] += CurrencyService.convert_to_primary(
+        amount_try = CurrencyService.convert_to_primary(
             payment.amount, payment.currency, rates
         )
+        monthly_totals[month]['total_try'] += amount_try
+        
+        # Separate by billing cycle
+        billing_cycle = payment.subscription.billing_cycle if payment.subscription else 'monthly'
+        if billing_cycle == 'monthly':
+            monthly_totals[month]['monthly_try'] += amount_try
+        else:
+            monthly_totals[month]['other_try'] += amount_try
     
     # Category breakdown
     category_totals = {}
