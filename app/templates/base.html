@@ -238,9 +238,12 @@
         // Initialize Lucide icons
         lucide.createIcons();
 
-        // Re-initialize icons and close mobile menu after HTMX swaps content
-        document.body.addEventListener('htmx:afterSwap', function (event) {
-            lucide.createIcons();
+        // Re-initialize icons and close mobile menu after HTMX settles content
+        document.body.addEventListener('htmx:afterSettle', function (event) {
+            // Small delay to ensure DOM is fully ready
+            requestAnimationFrame(function () {
+                lucide.createIcons();
+            });
             closeMobileMenu();
 
             // Execute inline scripts from the swapped content
