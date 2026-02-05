@@ -89,26 +89,31 @@
 {% block scripts %}
 <script>
     // Auto-fill form fields when subscription is selected
-    document.getElementById('subscription_id').addEventListener('change', function () {
-        const option = this.options[this.selectedIndex];
-        if (option.value) {
-            // Fill amount and currency
-            document.getElementById('amount').value = option.dataset.amount;
-            document.getElementById('original_amount').value = option.dataset.amount;
-            document.getElementById('currency').value = option.dataset.currency;
+    (function () {
+        const subscriptionSelect = document.getElementById('subscription_id');
+        if (!subscriptionSelect) return;
 
-            // Fill payment method if subscription has one
-            const paymentMethodId = option.dataset.paymentMethodId;
-            if (paymentMethodId) {
-                document.getElementById('payment_method_id').value = paymentMethodId;
-            }
+        subscriptionSelect.addEventListener('change', function () {
+            const option = this.options[this.selectedIndex];
+            if (option.value) {
+                // Fill amount and currency
+                document.getElementById('amount').value = option.dataset.amount;
+                document.getElementById('original_amount').value = option.dataset.amount;
+                document.getElementById('currency').value = option.dataset.currency;
 
-            // Fill payment date with subscription's next due date
-            const nextDueDate = option.dataset.nextDueDate;
-            if (nextDueDate) {
-                document.getElementById('paid_date').value = nextDueDate;
+                // Fill payment method if subscription has one
+                const paymentMethodId = option.dataset.paymentMethodId;
+                if (paymentMethodId) {
+                    document.getElementById('payment_method_id').value = paymentMethodId;
+                }
+
+                // Fill payment date with subscription's next due date
+                const nextDueDate = option.dataset.nextDueDate;
+                if (nextDueDate) {
+                    document.getElementById('paid_date').value = nextDueDate;
+                }
             }
-        }
-    });
+        });
+    })();
 </script>
 {% endblock %}

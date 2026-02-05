@@ -242,6 +242,15 @@
         document.body.addEventListener('htmx:afterSwap', function (event) {
             lucide.createIcons();
             closeMobileMenu();
+
+            // Execute inline scripts from the swapped content
+            const scripts = event.detail.elt.querySelectorAll('script');
+            scripts.forEach(script => {
+                const newScript = document.createElement('script');
+                newScript.textContent = script.textContent;
+                document.body.appendChild(newScript);
+                document.body.removeChild(newScript);
+            });
         });
 
         // Update active nav state after HTMX navigation
