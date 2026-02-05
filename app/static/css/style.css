@@ -136,6 +136,7 @@
 
 html {
     font-size: 14px;
+    scrollbar-gutter: stable;
 }
 
 body {
@@ -144,6 +145,7 @@ body {
     color: var(--text-primary);
     line-height: 1.6;
     min-height: 100vh;
+    overflow-y: scroll;
 }
 
 a {
