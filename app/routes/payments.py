@@ -149,8 +149,12 @@ def delete(id):
 @bp.route('/yearly')
 def yearly_report():
     """Yearly payment summary."""
+    from dateutil.relativedelta import relativedelta
+    
     year = request.args.get('year', date.today().year, type=int)
     rates = CurrencyService.get_rates()
+    current_year = date.today().year
+    current_month = date.today().month
     
     payments = Payment.query.filter(
         extract('year', Payment.paid_date) == year
@@ -162,7 +166,9 @@ def yearly_report():
         monthly_totals[month] = {
             'TRY': 0, 'USD': 0, 'EUR': 0, 'total_try': 0,
             'monthly_try': 0,  # Monthly billing cycle payments
-            'other_try': 0     # Yearly, quarterly, etc. payments
+            'other_try': 0,    # Yearly, quarterly, etc. payments
+            'predicted_monthly': 0,  # Predicted monthly payments
+            'predicted_other': 0     # Predicted yearly/quarterly payments
         }
     
     for payment in payments:
@@ -179,6 +185,41 @@ def yearly_report():
             monthly_totals[month]['monthly_try'] += amount_try
         else:
             monthly_totals[month]['other_try'] += amount_try
+    
+    # Calculate predictions for future months (current year only)
+    if year == current_year:
+        active_subscriptions = Subscription.query.filter_by(is_active=True).all()
+        
+        for sub in active_subscriptions:
+            if not sub.next_due_date:
+                continue
+            
+            amount_try = CurrencyService.convert_to_primary(sub.amount, sub.currency, rates)
+            
+            # Calculate all payment dates for remaining months of the year
+            check_date = sub.next_due_date
+            
+            # Get the billing cycle interval
+            if sub.billing_cycle == 'weekly':
+                delta = relativedelta(weeks=1)
+            elif sub.billing_cycle == 'monthly':
+                delta = relativedelta(months=1)
+            elif sub.billing_cycle == 'quarterly':
+                delta = relativedelta(months=3)
+            elif sub.billing_cycle == 'yearly':
+                delta = relativedelta(years=1)
+            else:
+                delta = relativedelta(months=1)  # Default to monthly
+            
+            # Project payments through end of year
+            while check_date.year == year:
+                if check_date.month > current_month:
+                    # This is a future payment - add to predictions
+                    if sub.billing_cycle == 'monthly':
+                        monthly_totals[check_date.month]['predicted_monthly'] += amount_try
+                    else:
+                        monthly_totals[check_date.month]['predicted_other'] += amount_try
+                check_date = check_date + delta
     
     # Category breakdown
     category_totals = {}
@@ -215,5 +256,7 @@ def yearly_report():
         category_totals=category_totals,
         grand_total=grand_total,
         available_years=available_years,
-        rates=rates
+        rates=rates,
+        current_month=current_month,
+        is_current_year=(year == current_year)
     )
