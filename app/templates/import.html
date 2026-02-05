@@ -17,7 +17,7 @@
         <p class="form-intro">Upload a JSON file that was previously exported from Subscription Tracker to restore your
             data.</p>
 
-        <form method="POST" enctype="multipart/form-data" class="form">
+        <form method="POST" enctype="multipart/form-data" class="form" hx-boost="false">
             <div class="form-group">
                 <label for="file">Select File *</label>
                 <input type="file" id="file" name="file" accept=".json" required class="file-input">
