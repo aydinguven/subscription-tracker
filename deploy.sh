@@ -1,16 +1,44 @@
 #!/bin/bash
 # Subscription Tracker Deployment Script
-# Run as root: sudo bash deploy.sh
+# Run as root: sudo bash deploy.sh [--port PORT]
 
 set -e
 
-# Configuration
+# Default configuration
 APP_NAME="subscription-tracker"
 APP_USER="subscription-tracker-user"
 APP_DIR="/opt/subscription-tracker"
 SOURCE_DIR="/home/aydin/subscription-tracker"
 PORT=5003
 DATA_DIR="$APP_DIR/data"
+
+# Parse arguments
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --port)
+            PORT="$2"
+            shift 2
+            ;;
+        --source)
+            SOURCE_DIR="$2"
+            shift 2
+            ;;
+        --help)
+            echo "Usage: sudo bash deploy.sh [OPTIONS]"
+            echo ""
+            echo "Options:"
+            echo "  --port PORT    Port to run on (default: 5003)"
+            echo "  --source DIR   Source directory (default: /home/aydin/subscription-tracker)"
+            echo "  --help         Show this help"
+            exit 0
+            ;;
+        *)
+            echo "Unknown option: $1"
+            echo "Use --help for usage"
+            exit 1
+            ;;
+    esac
+done
 
 echo "==================================="
 echo "  Subscription Tracker Deployment"
