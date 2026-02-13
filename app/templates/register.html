@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login - SubTracker</title>
+    <title>Register - SubTracker</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -26,14 +26,15 @@
                     <i data-lucide="wallet"></i>
                     <span>SubTracker</span>
                 </div>
-                <p class="login-subtitle">Sign in to manage your subscriptions</p>
+                <p class="login-subtitle">Create your account</p>
             </div>
 
             {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
             {% for category, message in messages %}
             <div class="alert alert-{{ category }}" style="margin-bottom: 1rem;">
-                <i data-lucide="{% if category == 'error' %}alert-circle{% else %}info{% endif %}"></i>
+                <i
+                    data-lucide="{% if category == 'error' %}alert-circle{% elif category == 'success' %}check-circle{% else %}info{% endif %}"></i>
                 <span>{{ message }}</span>
             </div>
             {% endfor %}
@@ -47,8 +48,16 @@
                             style="width: 14px; height: 14px; display: inline; vertical-align: middle;"></i>
                         Username
                     </label>
-                    <input type="text" id="username" name="username" required autofocus
-                        placeholder="Enter your username">
+                    <input type="text" id="username" name="username" required autofocus placeholder="Choose a username"
+                        minlength="3">
+                </div>
+                <div class="form-group">
+                    <label for="display_name">
+                        <i data-lucide="badge"
+                            style="width: 14px; height: 14px; display: inline; vertical-align: middle;"></i>
+                        Display Name <span style="opacity: 0.5; font-weight: 400;">(optional)</span>
+                    </label>
+                    <input type="text" id="display_name" name="display_name" placeholder="Your display name">
                 </div>
                 <div class="form-group">
                     <label for="password">
@@ -56,16 +65,26 @@
                             style="width: 14px; height: 14px; display: inline; vertical-align: middle;"></i>
                         Password
                     </label>
-                    <input type="password" id="password" name="password" required placeholder="Enter your password">
+                    <input type="password" id="password" name="password" required placeholder="Choose a password"
+                        minlength="4">
+                </div>
+                <div class="form-group">
+                    <label for="confirm_password">
+                        <i data-lucide="shield-check"
+                            style="width: 14px; height: 14px; display: inline; vertical-align: middle;"></i>
+                        Confirm Password
+                    </label>
+                    <input type="password" id="confirm_password" name="confirm_password" required
+                        placeholder="Confirm your password" minlength="4">
                 </div>
                 <button type="submit" class="btn btn-primary login-btn">
-                    <i data-lucide="log-in"></i>
-                    Sign In
+                    <i data-lucide="user-plus"></i>
+                    Create Account
                 </button>
             </form>
 
             <div class="login-footer">
-                <p>Don't have an account? <a href="{{ url_for('auth.register') }}">Register</a></p>
+                <p>Already have an account? <a href="{{ url_for('auth.login') }}">Sign in</a></p>
             </div>
         </div>
     </div>

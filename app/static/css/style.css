@@ -1735,6 +1735,25 @@ body.mobile-mode .page-header {
     height: 18px;
 }
 
+.login-footer {
+    text-align: center;
+    margin-top: 1.25rem;
+    padding-top: 1.25rem;
+    border-top: 1px solid var(--border-color);
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
+
+.login-footer a {
+    color: var(--accent);
+    text-decoration: none;
+    font-weight: 600;
+}
+
+.login-footer a:hover {
+    text-decoration: underline;
+}
+
 /* Light theme login adjustments */
 [data-theme="light"] .login-card {
     background: rgba(255, 255, 255, 0.85);
