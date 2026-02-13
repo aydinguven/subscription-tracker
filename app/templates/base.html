@@ -113,6 +113,15 @@
                 </a>
             </nav>
             <div class="sidebar-footer">
+                <div class="sidebar-user">
+                    <div class="user-info">
+                        <i data-lucide="user-circle"></i>
+                        <span>{{ current_user.display_name or current_user.username }}</span>
+                    </div>
+                    <a href="{{ url_for('auth.logout') }}" class="logout-btn" title="Sign out">
+                        <i data-lucide="log-out"></i>
+                    </a>
+                </div>
                 <button class="theme-toggle" onclick="toggleTheme()">
                     <i data-lucide="sun" id="theme-icon-light" style="display: none;"></i>
                     <i data-lucide="moon" id="theme-icon-dark"></i>

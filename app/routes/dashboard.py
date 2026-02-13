@@ -1,4 +1,5 @@
 from flask import Blueprint, render_template
+from flask_login import login_required, current_user
 from datetime import date, timedelta
 from sqlalchemy import func, extract
 from app.models import Subscription, Payment, Category
@@ -8,13 +9,14 @@ bp = Blueprint('dashboard', __name__)
 
 
 @bp.route('/')
+@login_required
 def index():
     """Main dashboard view."""
     today = date.today()
     week_from_now = today + timedelta(days=7)
     
-    # Get active subscriptions
-    active_subs = Subscription.query.filter_by(is_active=True).all()
+    # Get active subscriptions for current user
+    active_subs = Subscription.query.filter_by(user_id=current_user.id, is_active=True).all()
     
     # Get exchange rates
     rates = CurrencyService.get_rates()
@@ -26,6 +28,7 @@ def index():
     
     # Upcoming due this week
     upcoming = Subscription.query.filter(
+        Subscription.user_id == current_user.id,
         Subscription.is_active == True,
         Subscription.next_due_date >= today,
         Subscription.next_due_date <= week_from_now
@@ -33,6 +36,7 @@ def index():
     
     # Overdue subscriptions
     overdue = Subscription.query.filter(
+        Subscription.user_id == current_user.id,
         Subscription.is_active == True,
         Subscription.next_due_date < today
     ).order_by(Subscription.next_due_date).all()
@@ -52,6 +56,7 @@ def index():
     # Get yearly total from payments
     current_year = today.year
     yearly_payments = Payment.query.filter(
+        Payment.user_id == current_user.id,
         extract('year', Payment.paid_date) == current_year
     ).all()
     
@@ -70,7 +75,7 @@ def index():
             savings_count += 1
     
     # All-time savings
-    all_payments = Payment.query.all()
+    all_payments = Payment.query.filter_by(user_id=current_user.id).all()
     all_time_savings = 0
     all_time_savings_count = 0
     for p in all_payments:

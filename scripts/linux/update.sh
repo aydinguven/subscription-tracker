@@ -28,6 +28,8 @@ cp -r "$SOURCE_DIR/app" "$APP_DIR/"
 cp "$SOURCE_DIR/config.py" "$APP_DIR/"
 cp "$SOURCE_DIR/run.py" "$APP_DIR/"
 cp "$SOURCE_DIR/requirements.txt" "$APP_DIR/"
+cp "$SOURCE_DIR/scripts/linux/manage_users.sh" "$APP_DIR/"
+chmod +x "$APP_DIR/manage_users.sh"
 
 # Update dependencies if requirements changed
 echo "[3/4] Updating dependencies..."

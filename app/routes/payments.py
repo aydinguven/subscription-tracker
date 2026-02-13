@@ -1,47 +1,24 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash
-from datetime import date, datetime
+from flask_login import login_required, current_user
+from datetime import date
 from sqlalchemy import extract, func
 from app import db
 from app.models import Payment, Subscription, PaymentMethod
 from app.services.currency import CurrencyService
+from app.utils import parse_date
 
 bp = Blueprint('payments', __name__)
 
 
-def parse_date(date_string):
-    """Parse date string from various formats."""
-    if not date_string:
-        return None
-    
-    date_string = date_string.strip()
-    
-    try:
-        return date.fromisoformat(date_string)
-    except ValueError:
-        pass
-    
-    formats = [
-        '%d %b %y', '%d %b %Y', '%d/%m/%Y', '%d/%m/%y',
-        '%d-%m-%Y', '%d-%m-%y', '%m/%d/%Y', '%m/%d/%y',
-    ]
-    
-    for fmt in formats:
-        try:
-            return datetime.strptime(date_string, fmt).date()
-        except ValueError:
-            continue
-    
-    raise ValueError(f"Could not parse date: '{date_string}'")
-
-
 @bp.route('/')
+@login_required
 def index():
     """List all payments with filters."""
     subscription_id = request.args.get('subscription', type=int)
     year = request.args.get('year', date.today().year, type=int)
     currency = request.args.get('currency', 'all')
     
-    query = Payment.query
+    query = Payment.query.filter_by(user_id=current_user.id)
     
     if subscription_id:
         query = query.filter_by(subscription_id=subscription_id)
@@ -53,7 +30,7 @@ def index():
         query = query.filter_by(currency=currency)
     
     payments = query.order_by(Payment.paid_date.desc()).all()
-    subscriptions = Subscription.query.order_by(Subscription.name).all()
+    subscriptions = Subscription.query.filter_by(user_id=current_user.id).order_by(Subscription.name).all()
     rates = CurrencyService.get_rates()
     
     # Calculate totals by currency
@@ -69,9 +46,11 @@ def index():
         for curr, amount in currency_totals.items()
     )
     
-    # Get available years
+    # Get available years for current user
     years_query = db.session.query(
         extract('year', Payment.paid_date).label('year')
+    ).filter(
+        Payment.user_id == current_user.id
     ).distinct().order_by(extract('year', Payment.paid_date).desc()).all()
     available_years = [int(y.year) for y in years_query if y.year]
     
@@ -92,6 +71,7 @@ def index():
 
 
 @bp.route('/add', methods=['GET', 'POST'])
+@login_required
 def add():
     """Add a manual payment."""
     if request.method == 'POST':
@@ -105,6 +85,7 @@ def add():
         notes = request.form.get('notes')
         
         payment = Payment(
+            user_id=current_user.id,
             subscription_id=int(subscription_id) if subscription_id else None,
             payment_method_id=int(payment_method_id) if payment_method_id else None,
             amount=amount,
@@ -118,7 +99,9 @@ def add():
         
         # Advance subscription's due date
         if subscription_id:
-            subscription = Subscription.query.get(int(subscription_id))
+            subscription = Subscription.query.filter_by(
+                id=int(subscription_id), user_id=current_user.id
+            ).first()
             if subscription:
                 subscription.advance_due_date()
         
@@ -126,8 +109,8 @@ def add():
         flash('Payment recorded successfully!', 'success')
         return redirect(url_for('payments.index'))
     
-    subscriptions = Subscription.query.order_by(Subscription.name).all()
-    payment_methods = PaymentMethod.query.order_by(PaymentMethod.name).all()
+    subscriptions = Subscription.query.filter_by(user_id=current_user.id).order_by(Subscription.name).all()
+    payment_methods = PaymentMethod.query.filter_by(user_id=current_user.id).order_by(PaymentMethod.name).all()
     return render_template('payment_form.html',
         payment=None,
         subscriptions=subscriptions,
@@ -137,9 +120,10 @@ def add():
 
 
 @bp.route('/delete/<int:id>', methods=['POST'])
+@login_required
 def delete(id):
     """Delete a payment."""
-    payment = Payment.query.get_or_404(id)
+    payment = Payment.query.filter_by(id=id, user_id=current_user.id).first_or_404()
     db.session.delete(payment)
     db.session.commit()
     flash('Payment deleted!', 'success')
@@ -147,6 +131,7 @@ def delete(id):
 
 
 @bp.route('/yearly')
+@login_required
 def yearly_report():
     """Yearly payment summary."""
     from dateutil.relativedelta import relativedelta
@@ -157,6 +142,7 @@ def yearly_report():
     current_month = date.today().month
     
     payments = Payment.query.filter(
+        Payment.user_id == current_user.id,
         extract('year', Payment.paid_date) == year
     ).all()
     
@@ -188,7 +174,9 @@ def yearly_report():
     
     # Calculate predictions for future months (current year only)
     if year == current_year:
-        active_subscriptions = Subscription.query.filter_by(is_active=True).all()
+        active_subscriptions = Subscription.query.filter_by(
+            user_id=current_user.id, is_active=True
+        ).all()
         
         for sub in active_subscriptions:
             if not sub.next_due_date:
@@ -241,9 +229,11 @@ def yearly_report():
     # Grand total
     grand_total = sum(m['total_try'] for m in monthly_totals.values())
     
-    # Available years
+    # Available years for current user
     years_query = db.session.query(
         extract('year', Payment.paid_date).label('year')
+    ).filter(
+        Payment.user_id == current_user.id
     ).distinct().order_by(extract('year', Payment.paid_date).desc()).all()
     available_years = [int(y.year) for y in years_query if y.year]
     

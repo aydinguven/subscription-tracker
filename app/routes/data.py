@@ -1,4 +1,5 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, Response
+from flask_login import login_required, current_user
 from datetime import date, datetime
 import json
 from app import db
@@ -8,6 +9,7 @@ bp = Blueprint('data', __name__)
 
 
 @bp.route('/export', methods=['GET', 'POST'])
+@login_required
 def export_data():
     """Export data to JSON file."""
     if request.method == 'POST':
@@ -29,7 +31,7 @@ def export_data():
                     'color': c.color,
                     'icon': c.icon
                 }
-                for c in Category.query.all()
+                for c in Category.query.filter_by(user_id=current_user.id).all()
             ]
         
         if export_payment_methods:
@@ -42,7 +44,7 @@ def export_data():
                     'icon': m.icon,
                     'is_default': m.is_default
                 }
-                for m in PaymentMethod.query.all()
+                for m in PaymentMethod.query.filter_by(user_id=current_user.id).all()
             ]
         
         if export_subscriptions:
@@ -61,7 +63,7 @@ def export_data():
                     'is_active': s.is_active,
                     'is_variable': s.is_variable
                 }
-                for s in Subscription.query.all()
+                for s in Subscription.query.filter_by(user_id=current_user.id).all()
             ]
         
         if export_payments:
@@ -75,7 +77,7 @@ def export_data():
                     'paid_date': p.paid_date.isoformat() if p.paid_date else None,
                     'notes': p.notes
                 }
-                for p in Payment.query.all()
+                for p in Payment.query.filter_by(user_id=current_user.id).all()
             ]
         
         # Return as downloadable JSON file
@@ -88,17 +90,18 @@ def export_data():
             headers={'Content-Disposition': f'attachment; filename={filename}'}
         )
     
-    # GET - show export form
+    # GET - show export form with user-specific counts
     stats = {
-        'categories': Category.query.count(),
-        'payment_methods': PaymentMethod.query.count(),
-        'subscriptions': Subscription.query.count(),
-        'payments': Payment.query.count()
+        'categories': Category.query.filter_by(user_id=current_user.id).count(),
+        'payment_methods': PaymentMethod.query.filter_by(user_id=current_user.id).count(),
+        'subscriptions': Subscription.query.filter_by(user_id=current_user.id).count(),
+        'payments': Payment.query.filter_by(user_id=current_user.id).count()
     }
     return render_template('export.html', stats=stats)
 
 
 @bp.route('/import', methods=['GET', 'POST'])
+@login_required
 def import_data():
     """Import data from JSON file."""
     if request.method == 'POST':
@@ -125,7 +128,7 @@ def import_data():
         # Import categories first (needed for subscriptions)
         if import_categories and 'categories' in data:
             for cat_data in data['categories']:
-                existing = Category.query.filter_by(name=cat_data['name']).first()
+                existing = Category.query.filter_by(user_id=current_user.id, name=cat_data['name']).first()
                 if existing:
                     if skip_existing:
                         continue
@@ -134,6 +137,7 @@ def import_data():
                     existing.icon = cat_data.get('icon', existing.icon)
                 else:
                     cat = Category(
+                        user_id=current_user.id,
                         name=cat_data['name'],
                         color=cat_data.get('color', '#6b7280'),
                         icon=cat_data.get('icon', 'folder')
@@ -145,7 +149,7 @@ def import_data():
         # Import payment methods
         if import_payment_methods and 'payment_methods' in data:
             for pm_data in data['payment_methods']:
-                existing = PaymentMethod.query.filter_by(name=pm_data['name']).first()
+                existing = PaymentMethod.query.filter_by(user_id=current_user.id, name=pm_data['name']).first()
                 if existing:
                     if skip_existing:
                         continue
@@ -155,6 +159,7 @@ def import_data():
                     existing.icon = pm_data.get('icon', existing.icon)
                 else:
                     pm = PaymentMethod(
+                        user_id=current_user.id,
                         name=pm_data['name'],
                         method_type=pm_data.get('method_type', 'other'),
                         identifier=pm_data.get('identifier'),
@@ -169,18 +174,18 @@ def import_data():
         # Import subscriptions
         if import_subscriptions and 'subscriptions' in data:
             for sub_data in data['subscriptions']:
-                existing = Subscription.query.filter_by(name=sub_data['name']).first()
+                existing = Subscription.query.filter_by(user_id=current_user.id, name=sub_data['name']).first()
                 if existing and skip_existing:
                     continue
                 
-                # Find category and payment method by name
+                # Find category and payment method by name (within user's data)
                 category = None
                 if sub_data.get('category_name'):
-                    category = Category.query.filter_by(name=sub_data['category_name']).first()
+                    category = Category.query.filter_by(user_id=current_user.id, name=sub_data['category_name']).first()
                 
                 payment_method = None
                 if sub_data.get('payment_method_name'):
-                    payment_method = PaymentMethod.query.filter_by(name=sub_data['payment_method_name']).first()
+                    payment_method = PaymentMethod.query.filter_by(user_id=current_user.id, name=sub_data['payment_method_name']).first()
                 
                 if existing:
                     existing.category_id = category.id if category else None
@@ -197,6 +202,7 @@ def import_data():
                     existing.is_variable = sub_data.get('is_variable', existing.is_variable)
                 else:
                     sub = Subscription(
+                        user_id=current_user.id,
                         name=sub_data['name'],
                         category_id=category.id if category else None,
                         payment_method_id=payment_method.id if payment_method else None,
@@ -217,19 +223,20 @@ def import_data():
         # Import payments
         if import_payments and 'payments' in data:
             for pay_data in data['payments']:
-                # Find subscription and payment method by name
+                # Find subscription and payment method by name (within user's data)
                 subscription = None
                 if pay_data.get('subscription_name'):
-                    subscription = Subscription.query.filter_by(name=pay_data['subscription_name']).first()
+                    subscription = Subscription.query.filter_by(user_id=current_user.id, name=pay_data['subscription_name']).first()
                 
                 if not subscription:
                     continue  # Skip payments without valid subscription
                 
                 payment_method = None
                 if pay_data.get('payment_method_name'):
-                    payment_method = PaymentMethod.query.filter_by(name=pay_data['payment_method_name']).first()
+                    payment_method = PaymentMethod.query.filter_by(user_id=current_user.id, name=pay_data['payment_method_name']).first()
                 
                 payment = Payment(
+                    user_id=current_user.id,
                     subscription_id=subscription.id,
                     payment_method_id=payment_method.id if payment_method else None,
                     amount=pay_data.get('amount', 0),

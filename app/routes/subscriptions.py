@@ -1,55 +1,16 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash
-from datetime import date, datetime
+from flask_login import login_required, current_user
+from datetime import date
 from app import db
 from app.models import Subscription, Category, Payment, PaymentMethod
 from app.services.currency import CurrencyService
+from app.utils import parse_date
 
 bp = Blueprint('subscriptions', __name__)
 
 
-def parse_date(date_string):
-    """Parse date string from various formats.
-    
-    Supports:
-    - ISO format: YYYY-MM-DD (standard HTML5 date input)
-    - DD Mon YY: e.g., '06 Feb 26' (some mobile browsers)
-    - DD Mon YYYY: e.g., '06 Feb 2026'
-    - DD/MM/YYYY: e.g., '06/02/2026'
-    """
-    if not date_string:
-        return None
-    
-    date_string = date_string.strip()
-    
-    # Try ISO format first (most common from HTML5 date inputs)
-    try:
-        return date.fromisoformat(date_string)
-    except ValueError:
-        pass
-    
-    # Try various other formats
-    formats = [
-        '%d %b %y',    # 06 Feb 26
-        '%d %b %Y',    # 06 Feb 2026
-        '%d/%m/%Y',    # 06/02/2026
-        '%d/%m/%y',    # 06/02/26
-        '%d-%m-%Y',    # 06-02-2026
-        '%d-%m-%y',    # 06-02-26
-        '%m/%d/%Y',    # 02/06/2026
-        '%m/%d/%y',    # 02/06/26
-    ]
-    
-    for fmt in formats:
-        try:
-            return datetime.strptime(date_string, fmt).date()
-        except ValueError:
-            continue
-    
-    # If all parsing fails, raise a helpful error
-    raise ValueError(f"Could not parse date: '{date_string}'. Expected formats: YYYY-MM-DD, DD Mon YY, DD/MM/YYYY")
-
-
 @bp.route('/')
+@login_required
 def index():
     """List all subscriptions."""
     # Get filter parameters
@@ -57,7 +18,7 @@ def index():
     status = request.args.get('status', 'active')
     currency = request.args.get('currency', 'all')
     
-    query = Subscription.query
+    query = Subscription.query.filter_by(user_id=current_user.id)
     
     if category_id:
         query = query.filter_by(category_id=category_id)
@@ -76,7 +37,7 @@ def index():
         query = query.filter_by(currency=currency)
     
     subscriptions = query.order_by(Subscription.next_due_date.asc().nullslast()).all()
-    categories = Category.query.order_by(Category.name).all()
+    categories = Category.query.filter_by(user_id=current_user.id).order_by(Category.name).all()
     rates = CurrencyService.get_rates()
     
     return render_template('subscriptions.html',
@@ -90,6 +51,7 @@ def index():
 
 
 @bp.route('/add', methods=['GET', 'POST'])
+@login_required
 def add():
     """Add a new subscription."""
     if request.method == 'POST':
@@ -108,6 +70,7 @@ def add():
         is_variable = request.form.get('is_variable') == 'on'
         
         subscription = Subscription(
+            user_id=current_user.id,
             name=name,
             category_id=int(category_id) if category_id else None,
             payment_method_id=int(payment_method_id) if payment_method_id else None,
@@ -127,8 +90,8 @@ def add():
         flash(f'Subscription "{name}" added successfully!', 'success')
         return redirect(url_for('subscriptions.index'))
     
-    categories = Category.query.order_by(Category.name).all()
-    payment_methods = PaymentMethod.query.order_by(PaymentMethod.name).all()
+    categories = Category.query.filter_by(user_id=current_user.id).order_by(Category.name).all()
+    payment_methods = PaymentMethod.query.filter_by(user_id=current_user.id).order_by(PaymentMethod.name).all()
     return render_template('subscription_form.html',
         subscription=None,
         categories=categories,
@@ -138,9 +101,10 @@ def add():
 
 
 @bp.route('/edit/<int:id>', methods=['GET', 'POST'])
+@login_required
 def edit(id):
     """Edit an existing subscription."""
-    subscription = Subscription.query.get_or_404(id)
+    subscription = Subscription.query.filter_by(id=id, user_id=current_user.id).first_or_404()
     
     if request.method == 'POST':
         subscription.name = request.form.get('name')
@@ -169,8 +133,8 @@ def edit(id):
         flash(f'Subscription "{subscription.name}" updated!', 'success')
         return redirect(url_for('subscriptions.index'))
     
-    categories = Category.query.order_by(Category.name).all()
-    payment_methods = PaymentMethod.query.order_by(PaymentMethod.name).all()
+    categories = Category.query.filter_by(user_id=current_user.id).order_by(Category.name).all()
+    payment_methods = PaymentMethod.query.filter_by(user_id=current_user.id).order_by(PaymentMethod.name).all()
     return render_template('subscription_form.html',
         subscription=subscription,
         categories=categories,
@@ -180,9 +144,10 @@ def edit(id):
 
 
 @bp.route('/delete/<int:id>', methods=['POST'])
+@login_required
 def delete(id):
     """Delete a subscription."""
-    subscription = Subscription.query.get_or_404(id)
+    subscription = Subscription.query.filter_by(id=id, user_id=current_user.id).first_or_404()
     name = subscription.name
     db.session.delete(subscription)
     db.session.commit()
@@ -191,12 +156,14 @@ def delete(id):
 
 
 @bp.route('/pay/<int:id>', methods=['POST'])
+@login_required
 def mark_paid(id):
     """Mark a subscription as paid and advance due date."""
-    subscription = Subscription.query.get_or_404(id)
+    subscription = Subscription.query.filter_by(id=id, user_id=current_user.id).first_or_404()
     
     # Create payment record
     payment = Payment(
+        user_id=current_user.id,
         subscription_id=subscription.id,
         payment_method_id=subscription.payment_method_id,
         amount=subscription.amount,
@@ -215,9 +182,10 @@ def mark_paid(id):
 
 
 @bp.route('/toggle/<int:id>', methods=['POST'])
+@login_required
 def toggle_active(id):
     """Toggle subscription active status."""
-    subscription = Subscription.query.get_or_404(id)
+    subscription = Subscription.query.filter_by(id=id, user_id=current_user.id).first_or_404()
     subscription.is_active = not subscription.is_active
     db.session.commit()
     

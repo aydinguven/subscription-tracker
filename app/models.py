@@ -1,17 +1,51 @@
 from datetime import datetime, date
 from dateutil.relativedelta import relativedelta
+from flask_login import UserMixin
+from werkzeug.security import generate_password_hash, check_password_hash
 from app import db
+
+
+class User(UserMixin, db.Model):
+    __tablename__ = 'users'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(80), unique=True, nullable=False)
+    display_name = db.Column(db.String(100), nullable=True)
+    password_hash = db.Column(db.String(256), nullable=False)
+    is_admin = db.Column(db.Boolean, default=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Relationships
+    subscriptions = db.relationship('Subscription', backref='user', lazy='dynamic')
+    payments = db.relationship('Payment', backref='user', lazy='dynamic')
+    categories = db.relationship('Category', backref='user', lazy='dynamic')
+    payment_methods = db.relationship('PaymentMethod', backref='user', lazy='dynamic')
+    
+    def set_password(self, password):
+        self.password_hash = generate_password_hash(password)
+    
+    def check_password(self, password):
+        return check_password_hash(self.password_hash, password)
+    
+    def __repr__(self):
+        return f'<User {self.username}>'
 
 
 class Category(db.Model):
     __tablename__ = 'categories'
     
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(50), nullable=False, unique=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
+    name = db.Column(db.String(50), nullable=False)
     color = db.Column(db.String(7), default='#6b7280')  # Hex color
     icon = db.Column(db.String(30), default='box')  # Lucide icon name
     
     subscriptions = db.relationship('Subscription', backref='category', lazy='dynamic')
+    
+    # Remove global unique constraint, add per-user unique
+    __table_args__ = (
+        db.UniqueConstraint('user_id', 'name', name='uq_category_user_name'),
+    )
     
     def to_dict(self):
         return {
@@ -26,6 +60,7 @@ class PaymentMethod(db.Model):
     __tablename__ = 'payment_methods'
     
     id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
     name = db.Column(db.String(100), nullable=False)  # e.g., "My Bank", "Visa 9365"
     method_type = db.Column(db.String(20), nullable=False)  # bank, credit_card, mobile
     identifier = db.Column(db.String(50), nullable=True)  # Last 4 digits, account hint
@@ -60,6 +95,7 @@ class Subscription(db.Model):
     __tablename__ = 'subscriptions'
     
     id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
     name = db.Column(db.String(100), nullable=False)
     category_id = db.Column(db.Integer, db.ForeignKey('categories.id'), nullable=True)
     payment_method_id = db.Column(db.Integer, db.ForeignKey('payment_methods.id'), nullable=True)
@@ -153,6 +189,7 @@ class Payment(db.Model):
     __tablename__ = 'payments'
     
     id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
     subscription_id = db.Column(db.Integer, db.ForeignKey('subscriptions.id'), nullable=False)
     payment_method_id = db.Column(db.Integer, db.ForeignKey('payment_methods.id'), nullable=True)
     amount = db.Column(db.Float, nullable=False)  # Actual amount paid
@@ -198,15 +235,19 @@ class Settings(db.Model):
     __tablename__ = 'settings'
     
     id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
     primary_currency = db.Column(db.String(3), default='TRY')
     exchange_rates = db.Column(db.JSON, default=dict)  # {'USD': 30.5, 'EUR': 33.2}
     rates_updated_at = db.Column(db.DateTime, nullable=True)
     
     @classmethod
-    def get_settings(cls):
-        settings = cls.query.first()
+    def get_settings(cls, user_id=None):
+        if user_id:
+            settings = cls.query.filter_by(user_id=user_id).first()
+        else:
+            settings = cls.query.first()
         if not settings:
-            settings = cls(primary_currency='TRY', exchange_rates={})
+            settings = cls(user_id=user_id, primary_currency='TRY', exchange_rates={})
             db.session.add(settings)
             db.session.commit()
         return settings

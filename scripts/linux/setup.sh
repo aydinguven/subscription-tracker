@@ -88,12 +88,13 @@ install_app() {
     # Create directory
     mkdir -p "$INSTALL_DIR"
     
-    # Copy files
-    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    # Copy files — resolve project root (two levels up from scripts/linux/)
+    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
     cp -r "$SCRIPT_DIR/app" "$INSTALL_DIR/"
     cp "$SCRIPT_DIR/run.py" "$INSTALL_DIR/"
     cp "$SCRIPT_DIR/config.py" "$INSTALL_DIR/"
     cp "$SCRIPT_DIR/requirements.txt" "$INSTALL_DIR/"
+    cp "$SCRIPT_DIR/scripts/linux/manage_users.sh" "$INSTALL_DIR/"
     
     # Create virtual environment
     log_info "Creating Python virtual environment..."
@@ -124,6 +125,7 @@ install_app() {
     # Binaries and scripts need +x
     chmod +x "$INSTALL_DIR/venv/bin/"*
     chmod +x "$INSTALL_DIR/run.py"
+    chmod +x "$INSTALL_DIR/manage_users.sh"
     chmod +x "$INSTALL_DIR"
     
     # Fix SELinux context if SELinux is enabled (RHEL/CentOS/Fedora)
@@ -199,6 +201,68 @@ start_service() {
     fi
 }
 
+create_admin_user() {
+    log_info "Creating initial admin user..."
+    echo ""
+    
+    read -p "Admin username [admin]: " admin_user
+    admin_user="${admin_user:-admin}"
+    
+    read -p "Admin display name (optional): " admin_display
+    
+    while true; do
+        read -s -p "Admin password: " admin_pass
+        echo ""
+        
+        if [ -z "$admin_pass" ]; then
+            log_error "Password cannot be empty"
+            continue
+        fi
+        
+        if [ ${#admin_pass} -lt 4 ]; then
+            log_error "Password must be at least 4 characters"
+            continue
+        fi
+        
+        read -s -p "Confirm password: " admin_pass2
+        echo ""
+        
+        if [ "$admin_pass" != "$admin_pass2" ]; then
+            log_error "Passwords do not match"
+            continue
+        fi
+        
+        break
+    done
+    
+    admin_display_escaped=$(printf '%s' "$admin_display" | sed "s/'/\\\\'/g")
+    admin_user_escaped=$(printf '%s' "$admin_user" | sed "s/'/\\\\'/g")
+    admin_pass_escaped=$(printf '%s' "$admin_pass" | sed "s/'/\\\\'/g")
+    
+    cd "$INSTALL_DIR"
+    sudo -u "$SERVICE_USER" "$INSTALL_DIR/venv/bin/python3" -c "
+import sys
+sys.path.insert(0, '.')
+from app import create_app, db, seed_default_categories
+from app.models import User
+
+app = create_app()
+with app.app_context():
+    user = User(username='$admin_user_escaped', display_name='$admin_display_escaped' or None, is_admin=True)
+    user.set_password('$admin_pass_escaped')
+    db.session.add(user)
+    db.session.commit()
+    seed_default_categories(user.id)
+    print(f'Admin user \"{user.username}\" created (ID: {user.id})')
+"
+    
+    if [ $? -eq 0 ]; then
+        log_info "Admin user created successfully!"
+    else
+        log_warn "Failed to create admin user. You can create one later with manage_users.sh"
+    fi
+}
+
 print_success() {
     echo ""
     echo -e "${GREEN}════════════════════════════════════════════${NC}"
@@ -213,6 +277,9 @@ print_success() {
     echo "    Stop:    sudo systemctl stop subscription-tracker"
     echo "    Status:  sudo systemctl status subscription-tracker"
     echo "    Logs:    sudo journalctl -u subscription-tracker -f"
+    echo ""
+    echo "  User management:"
+    echo "    sudo $INSTALL_DIR/manage_users.sh"
     echo ""
     echo "  Data location: $INSTALL_DIR/data/"
     echo ""
@@ -285,6 +352,11 @@ main() {
     create_user
     install_app
     create_config
+    
+    # Create initial admin user
+    if [ -t 0 ]; then
+        create_admin_user
+    fi
     
     if [ "$CREATE_SERVICE" = true ]; then
         create_systemd_service

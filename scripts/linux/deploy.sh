@@ -67,9 +67,11 @@ mkdir -p "$DATA_DIR"
 # Copy application files
 echo "[3/7] Copying application files..."
 cp -r "$SOURCE_DIR/app" "$APP_DIR/"
-cp -r "$SOURCE_DIR/config.py" "$APP_DIR/"
-cp -r "$SOURCE_DIR/run.py" "$APP_DIR/"
-cp -r "$SOURCE_DIR/requirements.txt" "$APP_DIR/"
+cp "$SOURCE_DIR/config.py" "$APP_DIR/"
+cp "$SOURCE_DIR/run.py" "$APP_DIR/"
+cp "$SOURCE_DIR/requirements.txt" "$APP_DIR/"
+cp "$SOURCE_DIR/scripts/linux/manage_users.sh" "$APP_DIR/"
+chmod +x "$APP_DIR/manage_users.sh"
 
 # Set up Python virtual environment
 echo "[4/7] Setting up Python virtual environment..."

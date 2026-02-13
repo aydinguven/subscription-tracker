@@ -1,4 +1,5 @@
 from flask import Blueprint, jsonify, request
+from flask_login import login_required, current_user
 from datetime import date
 from sqlalchemy import extract
 from app import db
@@ -9,26 +10,29 @@ bp = Blueprint('api', __name__)
 
 
 @bp.route('/subscriptions')
+@login_required
 def get_subscriptions():
     """Get all subscriptions as JSON."""
-    subscriptions = Subscription.query.all()
+    subscriptions = Subscription.query.filter_by(user_id=current_user.id).all()
     return jsonify([s.to_dict() for s in subscriptions])
 
 
 @bp.route('/subscriptions/<int:id>')
+@login_required
 def get_subscription(id):
     """Get a single subscription."""
-    subscription = Subscription.query.get_or_404(id)
+    subscription = Subscription.query.filter_by(id=id, user_id=current_user.id).first_or_404()
     return jsonify(subscription.to_dict())
 
 
 @bp.route('/payments')
+@login_required
 def get_payments():
     """Get payments with optional filters."""
     year = request.args.get('year', type=int)
     subscription_id = request.args.get('subscription_id', type=int)
     
-    query = Payment.query
+    query = Payment.query.filter_by(user_id=current_user.id)
     
     if year:
         query = query.filter(extract('year', Payment.paid_date) == year)
@@ -40,24 +44,27 @@ def get_payments():
 
 
 @bp.route('/categories')
+@login_required
 def get_categories():
     """Get all categories."""
-    categories = Category.query.order_by(Category.name).all()
+    categories = Category.query.filter_by(user_id=current_user.id).order_by(Category.name).all()
     return jsonify([c.to_dict() for c in categories])
 
 
 @bp.route('/payment-methods')
+@login_required
 def get_payment_methods():
     """Get all payment methods."""
-    methods = PaymentMethod.query.order_by(PaymentMethod.name).all()
+    methods = PaymentMethod.query.filter_by(user_id=current_user.id).order_by(PaymentMethod.name).all()
     return jsonify([m.to_dict() for m in methods])
 
 
 @bp.route('/rates')
+@login_required
 def get_rates():
     """Get current exchange rates."""
     rates = CurrencyService.get_rates()
-    settings = Settings.get_settings()
+    settings = Settings.get_settings(user_id=current_user.id)
     return jsonify({
         'rates': rates,
         'updated_at': settings.rates_updated_at.isoformat() if settings.rates_updated_at else None
@@ -65,10 +72,11 @@ def get_rates():
 
 
 @bp.route('/rates/refresh', methods=['POST'])
+@login_required
 def refresh_rates():
     """Force refresh exchange rates."""
     rates = CurrencyService.get_rates(force_refresh=True)
-    settings = Settings.get_settings()
+    settings = Settings.get_settings(user_id=current_user.id)
     return jsonify({
         'rates': rates,
         'updated_at': settings.rates_updated_at.isoformat() if settings.rates_updated_at else None,
@@ -77,13 +85,14 @@ def refresh_rates():
 
 
 @bp.route('/stats')
+@login_required
 def get_stats():
     """Get dashboard statistics."""
     rates = CurrencyService.get_rates()
     today = date.today()
     
-    # Active subscriptions
-    active_subs = Subscription.query.filter_by(is_active=True).all()
+    # Active subscriptions for current user
+    active_subs = Subscription.query.filter_by(user_id=current_user.id, is_active=True).all()
     
     # Monthly total
     monthly_total = 0
@@ -93,6 +102,7 @@ def get_stats():
     # Yearly total from payments
     current_year = today.year
     yearly_payments = Payment.query.filter(
+        Payment.user_id == current_user.id,
         extract('year', Payment.paid_date) == current_year
     ).all()
     yearly_total = sum(
@@ -110,6 +120,7 @@ def get_stats():
             year -= 1
         
         payments = Payment.query.filter(
+            Payment.user_id == current_user.id,
             extract('year', Payment.paid_date) == year,
             extract('month', Payment.paid_date) == month
         ).all()

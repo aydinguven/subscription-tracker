@@ -1,4 +1,5 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash
+from flask_login import login_required, current_user
 from app import db
 from app.models import PaymentMethod
 
@@ -16,9 +17,10 @@ METHOD_TYPES = [
 
 
 @bp.route('/')
+@login_required
 def index():
     """List all payment methods."""
-    methods = PaymentMethod.query.order_by(PaymentMethod.name).all()
+    methods = PaymentMethod.query.filter_by(user_id=current_user.id).order_by(PaymentMethod.name).all()
     return render_template('payment_methods.html', 
         methods=methods,
         method_types=METHOD_TYPES
@@ -26,6 +28,7 @@ def index():
 
 
 @bp.route('/add', methods=['GET', 'POST'])
+@login_required
 def add():
     """Add a new payment method."""
     if request.method == 'POST':
@@ -36,11 +39,12 @@ def add():
         icon = request.form.get('icon', 'credit-card')
         is_default = request.form.get('is_default') == 'on'
         
-        # If setting as default, unset other defaults
+        # If setting as default, unset other defaults for this user
         if is_default:
-            PaymentMethod.query.update({PaymentMethod.is_default: False})
+            PaymentMethod.query.filter_by(user_id=current_user.id).update({PaymentMethod.is_default: False})
         
         method = PaymentMethod(
+            user_id=current_user.id,
             name=name,
             method_type=method_type,
             identifier=identifier,
@@ -61,9 +65,10 @@ def add():
 
 
 @bp.route('/edit/<int:id>', methods=['GET', 'POST'])
+@login_required
 def edit(id):
     """Edit a payment method."""
-    method = PaymentMethod.query.get_or_404(id)
+    method = PaymentMethod.query.filter_by(id=id, user_id=current_user.id).first_or_404()
     
     if request.method == 'POST':
         method.name = request.form.get('name')
@@ -73,9 +78,12 @@ def edit(id):
         method.icon = request.form.get('icon', 'credit-card')
         is_default = request.form.get('is_default') == 'on'
         
-        # If setting as default, unset other defaults
+        # If setting as default, unset other defaults for this user
         if is_default and not method.is_default:
-            PaymentMethod.query.filter(PaymentMethod.id != id).update({PaymentMethod.is_default: False})
+            PaymentMethod.query.filter(
+                PaymentMethod.user_id == current_user.id,
+                PaymentMethod.id != id
+            ).update({PaymentMethod.is_default: False})
         method.is_default = is_default
         
         db.session.commit()
@@ -90,9 +98,10 @@ def edit(id):
 
 
 @bp.route('/delete/<int:id>', methods=['POST'])
+@login_required
 def delete(id):
     """Delete a payment method."""
-    method = PaymentMethod.query.get_or_404(id)
+    method = PaymentMethod.query.filter_by(id=id, user_id=current_user.id).first_or_404()
     name = method.name
     
     # Unlink subscriptions and payments from this method
@@ -108,12 +117,13 @@ def delete(id):
 
 
 @bp.route('/set-default/<int:id>', methods=['POST'])
+@login_required
 def set_default(id):
     """Set a payment method as default."""
-    method = PaymentMethod.query.get_or_404(id)
+    method = PaymentMethod.query.filter_by(id=id, user_id=current_user.id).first_or_404()
     
-    # Unset all defaults
-    PaymentMethod.query.update({PaymentMethod.is_default: False})
+    # Unset all defaults for this user
+    PaymentMethod.query.filter_by(user_id=current_user.id).update({PaymentMethod.is_default: False})
     
     # Set this one as default
     method.is_default = True
