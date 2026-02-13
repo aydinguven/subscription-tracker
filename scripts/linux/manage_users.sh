@@ -52,16 +52,18 @@ check_install() {
 
 run_python() {
     cd "$INSTALL_DIR"
-    $PYTHON -c "
-import sys
+    $PYTHON <<PYEOF
+import sys, textwrap
 sys.path.insert(0, '.')
 from app import create_app, db
 from app.models import User
 
 app = create_app()
 with app.app_context():
-    $1
-"
+    exec(textwrap.dedent("""
+$1
+    """))
+PYEOF
 }
 
 create_user() {
