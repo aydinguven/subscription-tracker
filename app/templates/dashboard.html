@@ -1,14 +1,17 @@
 {% extends "base.html" %}
 
-{% block title %}Dashboard - Subscription Tracker{% endblock %}
+{% block title %}Dashboard - SubTracker{% endblock %}
 
 {% block content %}
 <div class="page-header">
-    <h1>Dashboard</h1>
+    <div>
+        <h1>Dashboard</h1>
+        <p class="page-subtitle">Track your recurring subscriptions and expenses in <strong>{{ primary_currency }}</strong></p>
+    </div>
     <div class="header-actions">
         <a href="{{ url_for('subscriptions.add') }}" class="btn btn-primary">
             <i data-lucide="plus"></i>
-            Add Subscription
+            <span>Add Subscription</span>
         </a>
     </div>
 </div>
@@ -29,8 +32,8 @@
             <i data-lucide="calendar"></i>
         </div>
         <div class="stat-content">
-            <span class="stat-value">₺{{ "%.2f"|format(monthly_total) }}</span>
-            <span class="stat-label">Monthly</span>
+            <span class="stat-value">{{ format_currency(monthly_total, primary_currency) }}</span>
+            <span class="stat-label">Monthly Spending</span>
         </div>
     </div>
     <div class="stat-card">
@@ -38,8 +41,8 @@
             <i data-lucide="bar-chart-2"></i>
         </div>
         <div class="stat-content">
-            <span class="stat-value">₺{{ "%.2f"|format(yearly_total) }}</span>
-            <span class="stat-label">{{ current_year }} Spending</span>
+            <span class="stat-value">{{ format_currency(yearly_total, primary_currency) }}</span>
+            <span class="stat-label">{{ current_year }} Total Paid</span>
         </div>
     </div>
     <div class="stat-card">
@@ -47,7 +50,7 @@
             <i data-lucide="piggy-bank"></i>
         </div>
         <div class="stat-content">
-            <span class="stat-value">₺{{ "%.2f"|format(all_time_savings) }}</span>
+            <span class="stat-value">{{ format_currency(all_time_savings, primary_currency) }}</span>
             <span class="stat-label">Total Savings ({{ all_time_savings_count }})</span>
         </div>
     </div>
@@ -55,10 +58,10 @@
 
 <!-- Dashboard Grid -->
 <div class="dashboard-grid">
-    <!-- Overdue -->
+    <!-- Overdue Subscriptions -->
     <div class="card">
         <div class="card-header">
-            <h3><i data-lucide="alert-circle" style="color: var(--danger);"></i> Overdue</h3>
+            <h3><i data-lucide="alert-circle" style="color: var(--danger);"></i> Overdue Payments</h3>
         </div>
         <div class="card-body">
             {% if overdue %}
@@ -68,24 +71,20 @@
                     <div class="upcoming-info">
                         <span class="upcoming-name">
                             {% if sub.favicon_url %}
-                            <img src="{{ sub.favicon_url }}" alt="" class="sub-favicon"
-                                onerror="this.style.display='none'">
+                            <img src="{{ sub.favicon_url }}" alt="" class="sub-favicon" onerror="this.style.display='none'">
                             {% endif %}
                             {{ sub.name }}
                         </span>
                         <span class="upcoming-date overdue-date">
-                            Due {{ sub.next_due_date.strftime('%b %d') }} ({{ -sub.days_until_due }} days ago)
+                            Due {{ sub.next_due_date.strftime('%b %d, %Y') }} ({{ -sub.days_until_due }} days ago)
                         </span>
                     </div>
                     <div class="upcoming-actions">
-                        <span class="upcoming-amount">{{ {'TRY': '₺', 'USD': '$', 'EUR': '€'}[sub.currency] }}{{
-                            "%.2f"|format(sub.amount) }}</span>
-                        <form action="{{ url_for('subscriptions.mark_paid', id=sub.id) }}" method="POST"
-                            style="display:inline;">
-                            <button type="submit" class="btn btn-sm btn-success" title="Mark as Paid">
-                                <i data-lucide="check"></i>
-                            </button>
-                        </form>
+                        <span class="upcoming-amount">{{ format_currency(sub.amount, sub.currency) }}</span>
+                        <button type="button" class="btn btn-sm btn-success" title="Quick Pay & Log"
+                            onclick="openQuickPayModal({{ sub.id }}, '{{ sub.name|replace("'", "\\'") }}', {{ sub.amount }}, '{{ sub.currency }}', '{{ sub.next_due_date.isoformat() if sub.next_due_date else "" }}')">
+                            <i data-lucide="check"></i> Pay
+                        </button>
                     </div>
                 </li>
                 {% endfor %}
@@ -93,7 +92,7 @@
             {% else %}
             <div class="empty-state">
                 <i data-lucide="check-circle" style="color: var(--success);"></i>
-                <p>No overdue payments! 🎉</p>
+                <p>No overdue payments! All caught up 🎉</p>
             </div>
             {% endif %}
         </div>
@@ -102,7 +101,7 @@
     <!-- Upcoming This Week -->
     <div class="card">
         <div class="card-header">
-            <h3><i data-lucide="clock" style="color: var(--warning);"></i> Upcoming This Week</h3>
+            <h3><i data-lucide="clock" style="color: var(--warning);"></i> Due in the Next 7 Days</h3>
         </div>
         <div class="card-body">
             {% if upcoming %}
@@ -112,8 +111,7 @@
                     <div class="upcoming-info">
                         <span class="upcoming-name">
                             {% if sub.favicon_url %}
-                            <img src="{{ sub.favicon_url }}" alt="" class="sub-favicon"
-                                onerror="this.style.display='none'">
+                            <img src="{{ sub.favicon_url }}" alt="" class="sub-favicon" onerror="this.style.display='none'">
                             {% endif %}
                             {{ sub.name }}
                         </span>
@@ -123,19 +121,16 @@
                             {% elif sub.days_until_due == 1 %}
                             Due Tomorrow
                             {% else %}
-                            Due in {{ sub.days_until_due }} days
+                            Due in {{ sub.days_until_due }} days ({{ sub.next_due_date.strftime('%b %d') }})
                             {% endif %}
                         </span>
                     </div>
                     <div class="upcoming-actions">
-                        <span class="upcoming-amount">{{ {'TRY': '₺', 'USD': '$', 'EUR': '€'}[sub.currency] }}{{
-                            "%.2f"|format(sub.amount) }}</span>
-                        <form action="{{ url_for('subscriptions.mark_paid', id=sub.id) }}" method="POST"
-                            style="display:inline;">
-                            <button type="submit" class="btn btn-sm btn-success" title="Mark as Paid">
-                                <i data-lucide="check"></i>
-                            </button>
-                        </form>
+                        <span class="upcoming-amount">{{ format_currency(sub.amount, sub.currency) }}</span>
+                        <button type="button" class="btn btn-sm btn-success" title="Quick Pay & Log"
+                            onclick="openQuickPayModal({{ sub.id }}, '{{ sub.name|replace("'", "\\'") }}', {{ sub.amount }}, '{{ sub.currency }}', '{{ sub.next_due_date.isoformat() if sub.next_due_date else "" }}')">
+                            <i data-lucide="check"></i> Pay
+                        </button>
                     </div>
                 </li>
                 {% endfor %}
@@ -143,26 +138,26 @@
             {% else %}
             <div class="empty-state">
                 <i data-lucide="calendar-check"></i>
-                <p>No upcoming payments this week</p>
+                <p>No payments due in the next 7 days</p>
             </div>
             {% endif %}
         </div>
     </div>
 
-    <!-- Category Breakdown -->
+    <!-- Category Breakdown Doughnut Chart -->
     <div class="card chart-card">
         <div class="card-header">
-            <h3><i data-lucide="pie-chart"></i> By Category (Monthly)</h3>
+            <h3><i data-lucide="pie-chart"></i> Monthly Spending by Category</h3>
         </div>
         <div class="card-body">
             <canvas id="categoryChart"></canvas>
         </div>
     </div>
 
-    <!-- Monthly Spending Trend -->
+    <!-- Monthly Spending Trend Line Chart -->
     <div class="card chart-card">
         <div class="card-header">
-            <h3><i data-lucide="trending-up"></i> Monthly Spending</h3>
+            <h3><i data-lucide="trending-up"></i> Monthly Spending Trend (Last 12 Months)</h3>
         </div>
         <div class="card-body">
             <canvas id="spendingChart"></canvas>
@@ -173,7 +168,10 @@
 
 {% block scripts %}
 <script>
-    // Category breakdown chart
+    const primaryCurrency = '{{ primary_currency }}';
+    const currencySymbol = '{{ get_symbol(primary_currency) }}';
+
+    // Category Breakdown Chart
     const categoryData = {{ category_totals | tojson | safe }};
     const categoryLabels = Object.keys(categoryData);
     const categoryValues = categoryLabels.map(k => categoryData[k].total);
@@ -187,7 +185,8 @@
                 datasets: [{
                     data: categoryValues,
                     backgroundColor: categoryColors,
-                    borderWidth: 0
+                    borderWidth: 2,
+                    borderColor: 'var(--bg-card, #1e293b)'
                 }]
             },
             options: {
@@ -197,15 +196,15 @@
                     legend: {
                         position: 'right',
                         labels: {
-                            color: getComputedStyle(document.documentElement).getPropertyValue('--text-secondary'),
-                            padding: 15,
-                            font: { size: 12 }
+                            color: getComputedStyle(document.documentElement).getPropertyValue('--text-secondary') || '#94a3b8',
+                            padding: 12,
+                            font: { size: 12, family: 'Inter' }
                         }
                     },
                     tooltip: {
                         callbacks: {
                             label: function (context) {
-                                return ` ₺${context.raw.toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
+                                return ` ${currencySymbol}${context.raw.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
                             }
                         }
                     }
@@ -214,7 +213,7 @@
         });
     }
 
-    // Fetch monthly spending data
+    // Monthly Spending Trend
     fetch('/api/stats')
         .then(r => r.json())
         .then(data => {
@@ -230,12 +229,12 @@
                 data: {
                     labels: labels,
                     datasets: [{
-                        label: 'Spending (₺)',
+                        label: `Spending (${primaryCurrency})`,
                         data: values,
                         borderColor: '#6366f1',
-                        backgroundColor: 'rgba(99, 102, 241, 0.1)',
+                        backgroundColor: 'rgba(99, 102, 241, 0.12)',
                         fill: true,
-                        tension: 0.4,
+                        tension: 0.35,
                         pointBackgroundColor: '#6366f1',
                         pointRadius: 4,
                         pointHoverRadius: 6
@@ -245,19 +244,26 @@
                     responsive: true,
                     maintainAspectRatio: false,
                     plugins: {
-                        legend: { display: false }
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function (context) {
+                                    return ` ${currencySymbol}${context.raw.toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
+                                }
+                            }
+                        }
                     },
                     scales: {
                         x: {
                             grid: { display: false },
-                            ticks: { color: getComputedStyle(document.documentElement).getPropertyValue('--text-muted') }
+                            ticks: { color: getComputedStyle(document.documentElement).getPropertyValue('--text-muted') || '#64748b' }
                         },
                         y: {
                             beginAtZero: true,
-                            grid: { color: 'rgba(255,255,255,0.05)' },
+                            grid: { color: 'rgba(255,255,255,0.06)' },
                             ticks: {
-                                color: getComputedStyle(document.documentElement).getPropertyValue('--text-muted'),
-                                callback: function (value) { return '₺' + value.toLocaleString(); }
+                                color: getComputedStyle(document.documentElement).getPropertyValue('--text-muted') || '#64748b',
+                                callback: function (value) { return currencySymbol + value.toLocaleString(); }
                             }
                         }
                     }

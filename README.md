@@ -1,153 +1,111 @@
-# Subscription Tracker
+# SubTracker (Subscription & Recurring Expense Tracker)
 
-A personal Flask web application for tracking subscriptions, payments, and utilities.
+A modern, secure, multi-user web application for tracking recurring subscriptions, utility bills, discounts, and payment methods across multiple currencies with automated exchange rate conversion.
 
-![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)
-![Flask](https://img.shields.io/badge/Flask-3.0-green.svg)
+![Python](https://img.shields.io/badge/Python-3.9+-blue.svg)
+![Flask](https://img.shields.io/badge/Flask-3.1-green.svg)
+![Tests](https://img.shields.io/badge/Pytest-Passing-brightgreen.svg)
 ![License](https://img.shields.io/badge/License-MIT-yellow.svg)
-
-## Features
-
-- 📊 **Dashboard** - Overview with spending charts and upcoming payments
-- 💳 **Subscriptions** - Track recurring subscriptions with auto-icon detection
-- 🔄 **Variable Utilities** - Support for bills with varying amounts (electricity, water, etc.)
-- 💰 **Discount Tracking** - Record when you pay less than normal price
-- 🐷 **Savings Calculator** - Track total money saved from discounts
-- 💱 **Multi-Currency** - TRY, USD, EUR with auto-fetched exchange rates
-- 🏷️ **Categories** - Organize with custom colors and icons
-- 💳 **Payment Methods** - Track which card/account is used
-- 🌐 **Favicon Support** - Automatically fetches brand logos from URLs
-- 📤 **Export/Import** - Backup and restore your data
-- 🌙 **Dark/Light Theme** - Toggle between themes
-
-## Tech Stack
-
-- **Backend**: Python Flask
-- **Database**: SQLite + SQLAlchemy
-- **Frontend**: HTML, CSS, JavaScript
-- **Charts**: Chart.js
-- **Icons**: Lucide Icons
 
 ---
 
-## Quick Start (Development)
+## ✨ Features
+
+- 📊 **Dynamic Dashboard**: Spending trends, category doughnuts, upcoming & overdue bills converted to your chosen primary currency.
+- 💱 **Multi-Currency Engine**: Supports TRY, USD, EUR, GBP, CAD, AUD, JPY, CHF with automated live rate syncing and user-configurable base currency.
+- 📅 **Renewal Calendar**: Interactive monthly timeline view of upcoming renewals and due dates.
+- 🔁 **Flexible Billing Cycles**: Monthly, Yearly, Weekly, Bi-Weekly, Quarterly (3-Month), and Semi-Annual (6-Month) recurrence.
+- 💰 **Discounts & Savings Calculator**: Track when you pay less than retail and monitor total money saved.
+- 🔔 **Automated Webhook Alerts**: Webhook notifications (Discord, Telegram, Slack, Generic JSON) for subscriptions due soon or overdue.
+- 📱 **Progressive Web App (PWA)**: Installable on iOS, Android, and Desktop with offline caching.
+- 📤 **Comprehensive Data Export & Import**: Full backups in JSON, multi-sheet Excel (`.xlsx`), and CSV formats.
+- ⚡ **Instant Search & Filters**: Live search across subscriptions and payments with custom tag support.
+- 🔒 **Hardened Security**: CSRF protection on all forms, IDOR protection across all user relationships, rate limiting, and password hashing.
+- 🌙 **Dark & Light Mode**: Fluid, instant theme toggling with zero layout shifts.
+
+---
+
+## 🛠️ Tech Stack
+
+- **Backend**: Python 3.11+ / Flask 3.1, Flask-SQLAlchemy, Flask-Login, Flask-WTF, Flask-Limiter, Flask-Migrate
+- **Database**: SQLite with SQLAlchemy ORM
+- **Frontend**: Vanilla CSS Design System, HTML5, Lucide Icons, Chart.js, Flatpickr, HTMX
+- **Testing**: Pytest & Pytest-Flask
+- **Deployment**: Docker, Docker Compose, Gunicorn, Systemd
+
+---
+
+## 🚀 Quick Start (Development)
 
 ```bash
 # Clone the repository
 git clone https://github.com/aydinguven/subscription-tracker.git
 cd subscription-tracker
 
-# Create virtual environment
+# Create and activate virtual environment
 python -m venv venv
-
-# Activate (Windows)
+# Windows:
 .\venv\Scripts\activate
-
-# Activate (Linux/Mac)
+# Linux / macOS:
 source venv/bin/activate
 
 # Install dependencies
 pip install -r requirements.txt
 
-# Run
+# Run development server
 python run.py
 ```
 
-Open http://127.0.0.1:5000
+Open [http://127.0.0.1:5000](http://127.0.0.1:5000) in your browser.
 
 ---
 
-## Linux Installation (Production)
-
-### One-Line Install
+## 🧪 Running Automated Tests
 
 ```bash
-sudo ./setup.sh
+python -m pytest -v
 ```
 
-### Custom Installation
+---
+
+## 🐳 Docker & Docker Compose
 
 ```bash
-sudo ./setup.sh --dir /opt/myapp --port 8080
-```
-
-### Options
-
-| Option | Description | Default |
-|--------|-------------|---------|
-| `--dir <path>` | Installation directory | `/opt/subscription-tracker` |
-| `--port <port>` | Port to run on | `5000` |
-| `--no-service` | Don't create systemd service | - |
-| `--non-interactive` | Skip prompts | - |
-
-### After Installation
-
-```bash
-# Start the service
-sudo systemctl start subscription-tracker
-
-# Stop the service
-sudo systemctl stop subscription-tracker
+# Start container in background
+docker compose up -d
 
 # View logs
-sudo journalctl -u subscription-tracker -f
-
-# Check status
-sudo systemctl status subscription-tracker
+docker compose logs -f
 ```
 
-### Uninstall
+---
+
+## 🔔 Scheduled Reminders & Webhook Cron
+
+To run the automated reminder checks periodically (e.g. daily via cron):
 
 ```bash
-sudo ./uninstall.sh
+# Crontab example (runs daily at 9:00 AM)
+0 9 * * * cd /path/to/subscription-tracker && /path/to/venv/bin/python scripts/check_reminders.py
 ```
 
 ---
 
-## Docker (Optional)
+## 🌐 Git Remotes (GitHub & git.aydin.cloud)
+
+This repository can be configured to push simultaneously to both GitHub and `git.aydin.cloud`:
 
 ```bash
-# Build
-docker build -t subscription-tracker .
+# Add git.aydin.cloud remote
+git remote add aydincloud https://git.aydin.cloud/aydin/subscription-tracker.git
 
-# Run
-docker run -d -p 5000:5000 -v subtracker-data:/app/data subscription-tracker
+# Or configure dual push on 'origin':
+git remote set-url --add --push origin https://github.com/aydinguven/subscription-tracker.git
+git remote set-url --add --push origin https://git.aydin.cloud/aydin/subscription-tracker.git
 ```
 
 ---
 
-## Configuration
-
-Environment variables (set in `.env` or system environment):
-
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `SECRET_KEY` | Flask secret key | Auto-generated |
-| `DATABASE_PATH` | SQLite database path | `./data/subscriptions.db` |
-| `FLASK_ENV` | Environment mode | `development` |
-| `PORT` | Server port | `5000` |
-
----
-
-## API Endpoints
-
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/api/stats` | GET | Dashboard statistics |
-| `/api/rates` | GET | Exchange rates |
-| `/api/categories` | GET | All categories |
-| `/api/payment-methods` | GET | All payment methods |
-| `/data/export` | GET/POST | Export data |
-| `/data/import` | GET/POST | Import data |
-
----
-
-## Screenshots
-
-Coming soon...
-
----
-
-## License
+## 📄 License
 
 MIT License - see [LICENSE](LICENSE) for details.

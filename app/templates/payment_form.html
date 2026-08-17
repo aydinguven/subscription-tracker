@@ -1,43 +1,36 @@
 {% extends "base.html" %}
 
-{% block title %}{{ action }} Payment - Subscription Tracker{% endblock %}
+{% block title %}{{ action }} Payment - SubTracker{% endblock %}
 
 {% block content %}
 <a href="{{ url_for('payments.index') }}" class="back-link">
     <i data-lucide="arrow-left"></i>
-    Back to Payments
+    <span>Back to Payments</span>
 </a>
 
 <div class="page-header">
-    <h1>{{ action }} Payment</h1>
+    <div>
+        <h1>{{ action }} Payment</h1>
+        <p class="page-subtitle">Log an expense or completed subscription renewal</p>
+    </div>
 </div>
 
 <div class="card form-card">
     <div class="card-body">
         <form method="POST" class="form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
             <div class="form-grid">
                 <div class="form-group">
                     <label for="subscription_id">Subscription *</label>
-                    <select id="subscription_id" name="subscription_id" required>
-                        <option value="">Select Subscription</option>
+                    <select id="subscription_id" name="subscription_id" required class="form-control" onchange="onSubscriptionChange(this)">
+                        <option value="">Select a Subscription</option>
                         {% for sub in subscriptions %}
-                        <option value="{{ sub.id }}" data-amount="{{ sub.amount }}" data-currency="{{ sub.currency }}"
-                            data-payment-method-id="{{ sub.payment_method_id or '' }}"
-                            data-next-due-date="{{ sub.next_due_date.isoformat() if sub.next_due_date else '' }}">
-                            {{ sub.name }} ({{ {'TRY': '₺', 'USD': '$', 'EUR': '€'}[sub.currency] }}{{
-                            "%.2f"|format(sub.amount) }})
-                        </option>
-                        {% endfor %}
-                    </select>
-                </div>
-
-                <div class="form-group">
-                    <label for="payment_method_id">Payment Method</label>
-                    <select id="payment_method_id" name="payment_method_id">
-                        <option value="">No Payment Method</option>
-                        {% for pm in payment_methods %}
-                        <option value="{{ pm.id }}" {% if pm.is_default %}selected{% endif %}>
-                            {{ pm.display_name }}
+                        <option value="{{ sub.id }}"
+                            data-amount="{{ sub.amount }}"
+                            data-currency="{{ sub.currency }}"
+                            data-payment-method="{{ sub.payment_method_id or '' }}">
+                            {{ sub.name }} ({{ format_currency(sub.amount, sub.currency) }})
                         </option>
                         {% endfor %}
                     </select>
@@ -45,73 +38,86 @@
 
                 <div class="form-group">
                     <label for="amount">Amount Paid *</label>
-                    <input type="number" id="amount" name="amount" step="0.01" min="0" required placeholder="0.00">
+                    <input type="number" id="amount" name="amount" step="0.01" min="0" required class="form-control"
+                        placeholder="0.00">
                 </div>
 
                 <div class="form-group">
-                    <label for="original_amount">Original Amount (for discount)</label>
-                    <input type="number" id="original_amount" name="original_amount" step="0.01" min="0"
-                        placeholder="Leave empty if no discount">
+                    <label for="original_amount">Original / Full Price (Optional)</label>
+                    <input type="number" id="original_amount" name="original_amount" step="0.01" min="0" class="form-control"
+                        placeholder="e.g. 100.00 if you got a discount">
+                    <small class="form-hint">Used to calculate and record money saved from discounts.</small>
                 </div>
 
                 <div class="form-group">
                     <label for="currency">Currency</label>
-                    <select id="currency" name="currency">
+                    <select id="currency" name="currency" class="form-control">
                         <option value="TRY">TRY (₺)</option>
                         <option value="USD">USD ($)</option>
                         <option value="EUR">EUR (€)</option>
+                        <option value="GBP">GBP (£)</option>
+                        <option value="CAD">CAD (CA$)</option>
+                        <option value="AUD">AUD (AU$)</option>
+                        <option value="JPY">JPY (¥)</option>
+                        <option value="CHF">CHF (CHF)</option>
                     </select>
                 </div>
 
                 <div class="form-group">
                     <label for="paid_date">Payment Date *</label>
-                    <input type="date" id="paid_date" name="paid_date" required value="{{ today }}">
+                    <input type="date" id="paid_date" name="paid_date" required class="form-control">
+                </div>
+
+                <div class="form-group">
+                    <label for="payment_method_id">Payment Method</label>
+                    <select id="payment_method_id" name="payment_method_id" class="form-control">
+                        <option value="">No Payment Method</option>
+                        {% for pm in payment_methods %}
+                        <option value="{{ pm.id }}">{{ pm.display_name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="form-group checkbox-group full-width">
+                    <label class="checkbox-label">
+                        <input type="checkbox" name="advance_date" checked>
+                        <span>Automatically advance subscription due date to next billing cycle</span>
+                    </label>
                 </div>
 
                 <div class="form-group full-width">
-                    <label for="notes">Notes</label>
-                    <textarea id="notes" name="notes" placeholder="Additional notes..."></textarea>
+                    <label for="notes">Notes / Receipt Ref</label>
+                    <textarea id="notes" name="notes" class="form-control" rows="2"
+                        placeholder="Invoice number, promotion code, transaction notes..."></textarea>
                 </div>
             </div>
 
             <div class="form-actions">
                 <button type="submit" class="btn btn-primary">
                     <i data-lucide="save"></i>
-                    Record Payment
+                    <span>Record Payment</span>
                 </button>
                 <a href="{{ url_for('payments.index') }}" class="btn btn-secondary">Cancel</a>
             </div>
         </form>
     </div>
 </div>
+{% endblock %}
 
+{% block scripts %}
 <script>
-    // Auto-fill form fields when subscription is selected
-    (function () {
-        const subscriptionSelect = document.getElementById('subscription_id');
-        if (!subscriptionSelect) return;
+    // Default payment date to today
+    document.getElementById('paid_date').value = new Date().toISOString().split('T')[0];
 
-        subscriptionSelect.addEventListener('change', function () {
-            const option = this.options[this.selectedIndex];
-            if (option.value) {
-                // Fill amount and currency
-                document.getElementById('amount').value = option.dataset.amount;
-                document.getElementById('original_amount').value = option.dataset.amount;
-                document.getElementById('currency').value = option.dataset.currency;
-
-                // Fill payment method if subscription has one
-                const paymentMethodId = option.dataset.paymentMethodId;
-                if (paymentMethodId) {
-                    document.getElementById('payment_method_id').value = paymentMethodId;
-                }
-
-                // Fill payment date with subscription's next due date
-                const nextDueDate = option.dataset.nextDueDate;
-                if (nextDueDate) {
-                    document.getElementById('paid_date').value = nextDueDate;
-                }
+    function onSubscriptionChange(select) {
+        const option = select.options[select.selectedIndex];
+        if (option && option.dataset.amount) {
+            document.getElementById('amount').value = option.dataset.amount;
+            document.getElementById('currency').value = option.dataset.currency || 'TRY';
+            if (option.dataset.paymentMethod) {
+                document.getElementById('payment_method_id').value = option.dataset.paymentMethod;
             }
-        });
-    })();
+        }
+    }
 </script>
 {% endblock %}

@@ -6,10 +6,16 @@ __pycache__/
 .Python
 venv/
 ENV/
+.pytest_cache/
+.hypothesis/
 
-# Database
+# Database & Data
 *.db
 *.sqlite3
+data/
+instance/
+*.xlsx
+*.csv
 
 # IDE
 .idea/

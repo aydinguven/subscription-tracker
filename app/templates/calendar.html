@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+
+{% block title %}Renewal Calendar - SubTracker{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1>Renewal Calendar</h1>
+        <p class="page-subtitle">Visual month-by-month timeline of upcoming subscription bills</p>
+    </div>
+    <div class="header-actions">
+        <a href="{{ url_for('subscriptions.calendar_view', year=prev_year, month=prev_month) }}" class="btn btn-secondary" title="Previous Month">
+            <i data-lucide="chevron-left"></i>
+        </a>
+        <span class="calendar-current-title">{{ current_month_name }}</span>
+        <a href="{{ url_for('subscriptions.calendar_view', year=next_year, month=next_month) }}" class="btn btn-secondary" title="Next Month">
+            <i data-lucide="chevron-right"></i>
+        </a>
+        <a href="{{ url_for('subscriptions.calendar_view') }}" class="btn btn-secondary">
+            Today
+        </a>
+    </div>
+</div>
+
+<div class="calendar-container card">
+    <!-- Weekday Header -->
+    <div class="calendar-weekdays">
+        <div class="weekday">Mon</div>
+        <div class="weekday">Tue</div>
+        <div class="weekday">Wed</div>
+        <div class="weekday">Thu</div>
+        <div class="weekday">Fri</div>
+        <div class="weekday">Sat</div>
+        <div class="weekday">Sun</div>
+    </div>
+
+    <!-- Calendar Grid -->
+    <div class="calendar-grid">
+        <!-- Empty padding days before month starts -->
+        {% for _ in range(calendar_start_weekday) %}
+        <div class="calendar-day padding-day"></div>
+        {% endfor %}
+
+        <!-- Days of the Month -->
+        {% for day in range(1, num_days + 1) %}
+        {% set is_today = (day == today.day and month == today.month and year == today.year) %}
+        <div class="calendar-day {% if is_today %}today{% endif %}">
+            <div class="day-number">{{ day }}</div>
+            <div class="day-events">
+                {% for sub in day_events[day] %}
+                <div class="calendar-event-pill {% if sub.is_overdue %}overdue{% endif %}"
+                    onclick="openQuickPayModal({{ sub.id }}, '{{ sub.name|replace("'", "\\'") }}', {{ sub.amount }}, '{{ sub.currency }}', '{{ sub.next_due_date.isoformat() if sub.next_due_date else "" }}')"
+                    title="{{ sub.name }} - {{ format_currency(sub.amount, sub.currency) }} (Click to log payment)">
+                    {% if sub.favicon_url %}
+                    <img src="{{ sub.favicon_url }}" class="event-favicon" alt="" onerror="this.style.display='none'">
+                    {% endif %}
+                    <span class="event-name">{{ sub.name }}</span>
+                    <span class="event-amount">{{ format_currency(sub.amount, sub.currency) }}</span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

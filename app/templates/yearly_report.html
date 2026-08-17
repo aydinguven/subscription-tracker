@@ -1,13 +1,16 @@
 {% extends "base.html" %}
 
-{% block title %}Yearly Report {{ year }} - Subscription Tracker{% endblock %}
+{% block title %}Yearly Report {{ year }} - SubTracker{% endblock %}
 
 {% block content %}
 <div class="page-header">
-    <h1>Yearly Report {{ year }}</h1>
+    <div>
+        <h1>Yearly Report {{ year }}</h1>
+        <p class="page-subtitle">Annual spending analysis and future renewal projections in <strong>{{ primary_currency }}</strong></p>
+    </div>
     <div class="header-actions">
         <form method="GET" action="{{ url_for('payments.yearly_report') }}" style="display:inline;">
-            <select name="year" onchange="this.form.submit()" class="year-select">
+            <select name="year" onchange="this.form.submit()" class="form-control year-select">
                 {% for y in available_years %}
                 <option value="{{ y }}" {% if year==y %}selected{% endif %}>{{ y }}</option>
                 {% endfor %}
@@ -22,8 +25,8 @@
         <i data-lucide="bar-chart-2"></i>
     </div>
     <div class="grand-total-content">
-        <span class="grand-total-label">Total Spending in {{ year }}</span>
-        <span class="grand-total-value">₺{{ "%.2f"|format(grand_total) }}</span>
+        <span class="grand-total-label">Total Spent in {{ year }}</span>
+        <span class="grand-total-value">{{ format_currency(grand_total, primary_currency) }}</span>
     </div>
 </div>
 
@@ -31,7 +34,7 @@
     <!-- Monthly Breakdown Chart -->
     <div class="card chart-card">
         <div class="card-header">
-            <h3><i data-lucide="bar-chart-3"></i> Monthly Breakdown</h3>
+            <h3><i data-lucide="bar-chart-3"></i> Monthly Actuals & Future Projections</h3>
         </div>
         <div class="card-body">
             <canvas id="monthlyChart"></canvas>
@@ -41,7 +44,7 @@
     <!-- Category Breakdown Chart -->
     <div class="card chart-card">
         <div class="card-header">
-            <h3><i data-lucide="pie-chart"></i> By Category</h3>
+            <h3><i data-lucide="pie-chart"></i> Annual Spending by Category</h3>
         </div>
         <div class="card-body">
             <canvas id="categoryChart"></canvas>
@@ -50,38 +53,47 @@
 </div>
 
 <!-- Monthly Table -->
-<div class="card">
+<div class="card" style="margin-top: 1.5rem;">
     <div class="card-header">
-        <h3><i data-lucide="calendar"></i> Monthly Details</h3>
+        <h3><i data-lucide="calendar"></i> Monthly Spending Breakdown</h3>
     </div>
     <div class="table-responsive">
         <table class="table">
             <thead>
                 <tr>
                     <th>Month</th>
-                    <th>TRY (₺)</th>
-                    <th>USD ($)</th>
-                    <th>EUR (€)</th>
-                    <th>Total (TRY)</th>
+                    <th>Monthly Cycle</th>
+                    <th>Other Cycles (Yearly/Qtr)</th>
+                    <th>Future Predicted</th>
+                    <th style="text-align: right;">Total Paid ({{ primary_currency }})</th>
                 </tr>
             </thead>
             <tbody>
                 {% set months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'] %}
                 {% for month in range(1, 13) %}
-                <tr class="{% if monthly_totals[month].total_try == 0 %}row-empty{% endif %}">
+                {% set m = monthly_totals[month] %}
+                <tr class="{% if m.total_primary == 0 and m.predicted_monthly == 0 and m.predicted_other == 0 %}row-empty{% endif %}">
                     <td><strong>{{ months[month - 1] }}</strong></td>
-                    <td>₺{{ "%.2f"|format(monthly_totals[month].TRY) }}</td>
-                    <td>${{ "%.2f"|format(monthly_totals[month].USD) }}</td>
-                    <td>€{{ "%.2f"|format(monthly_totals[month].EUR) }}</td>
-                    <td class="amount">₺{{ "%.2f"|format(monthly_totals[month].total_try) }}</td>
+                    <td>{{ format_currency(m.monthly_primary, primary_currency) }}</td>
+                    <td>{{ format_currency(m.other_primary, primary_currency) }}</td>
+                    <td>
+                        {% if m.predicted_monthly > 0 or m.predicted_other > 0 %}
+                        <span class="text-muted">≈ {{ format_currency(m.predicted_monthly + m.predicted_other, primary_currency) }}</span>
+                        {% else %}
+                        <span class="text-muted">—</span>
+                        {% endif %}
+                    </td>
+                    <td class="amount" style="text-align: right;">
+                        <strong>{{ format_currency(m.total_primary, primary_currency) }}</strong>
+                    </td>
                 </tr>
                 {% endfor %}
                 <tr class="total-row">
                     <td><strong>Total</strong></td>
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                    <td class="amount"><strong>₺{{ "%.2f"|format(grand_total) }}</strong></td>
+                    <td colspan="3"></td>
+                    <td class="amount" style="text-align: right;">
+                        <strong>{{ format_currency(grand_total, primary_currency) }}</strong>
+                    </td>
                 </tr>
             </tbody>
         </table>
@@ -91,37 +103,35 @@
 
 {% block scripts %}
 <script>
-    // Create striped pattern for predictions
+    const primaryCurrency = '{{ primary_currency }}';
+    const currencySymbol = '{{ get_symbol(primary_currency) }}';
+
     function createStripePattern(color) {
         const canvas = document.createElement('canvas');
         canvas.width = 10;
         canvas.height = 10;
         const ctx = canvas.getContext('2d');
-
         ctx.fillStyle = color;
         ctx.fillRect(0, 0, 10, 10);
-
-        ctx.strokeStyle = 'rgba(0, 0, 0, 0.3)';
+        ctx.strokeStyle = 'rgba(0, 0, 0, 0.25)';
         ctx.lineWidth = 2;
         ctx.beginPath();
         ctx.moveTo(0, 10);
         ctx.lineTo(10, 0);
         ctx.stroke();
-
         return ctx.createPattern(canvas, 'repeat');
     }
 
-    // Monthly breakdown chart with stacked bars for billing cycles
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     const monthlyData = {{ monthly_totals | tojson | safe }};
-    const monthlyValues = months.map((_, i) => monthlyData[i + 1].monthly_try);
-    const otherValues = months.map((_, i) => monthlyData[i + 1].other_try);
+    const monthlyValues = months.map((_, i) => monthlyData[i + 1].monthly_primary);
+    const otherValues = months.map((_, i) => monthlyData[i + 1].other_primary);
     const predictedMonthlyValues = months.map((_, i) => monthlyData[i + 1].predicted_monthly);
     const predictedOtherValues = months.map((_, i) => monthlyData[i + 1].predicted_other);
 
     const chartCtx = document.getElementById('monthlyChart').getContext('2d');
-    const monthlyStripePattern = createStripePattern('rgba(99, 102, 241, 0.4)');
-    const otherStripePattern = createStripePattern('rgba(20, 184, 166, 0.4)');
+    const monthlyStripePattern = createStripePattern('rgba(99, 102, 241, 0.35)');
+    const otherStripePattern = createStripePattern('rgba(20, 184, 166, 0.35)');
 
     new Chart(chartCtx, {
         type: 'bar',
@@ -129,9 +139,9 @@
             labels: months,
             datasets: [
                 {
-                    label: 'Monthly Subs',
+                    label: 'Monthly Subscriptions',
                     data: monthlyValues,
-                    backgroundColor: 'rgba(99, 102, 241, 0.7)',
+                    backgroundColor: 'rgba(99, 102, 241, 0.8)',
                     borderColor: '#6366f1',
                     borderWidth: 1,
                     borderRadius: 4,
@@ -140,7 +150,7 @@
                 {
                     label: 'Yearly/Quarterly',
                     data: otherValues,
-                    backgroundColor: 'rgba(20, 184, 166, 0.7)',
+                    backgroundColor: 'rgba(20, 184, 166, 0.8)',
                     borderColor: '#14b8a6',
                     borderWidth: 1,
                     borderRadius: 4,
@@ -153,17 +163,17 @@
                     borderColor: '#6366f1',
                     borderWidth: 1,
                     borderRadius: 4,
-                    borderDash: [5, 5],
+                    borderDash: [4, 4],
                     stack: 'predicted'
                 },
                 {
-                    label: 'Predicted Yearly/Quarterly',
+                    label: 'Predicted Other',
                     data: predictedOtherValues,
                     backgroundColor: otherStripePattern,
                     borderColor: '#14b8a6',
                     borderWidth: 1,
                     borderRadius: 4,
-                    borderDash: [5, 5],
+                    borderDash: [4, 4],
                     stack: 'predicted'
                 }
             ]
@@ -173,14 +183,11 @@
             maintainAspectRatio: false,
             plugins: {
                 legend: {
-                    display: true,
                     position: 'top',
                     labels: {
-                        color: getComputedStyle(document.documentElement).getPropertyValue('--text-secondary'),
+                        color: getComputedStyle(document.documentElement).getPropertyValue('--text-secondary') || '#94a3b8',
                         padding: 10,
-                        font: { size: 11 },
-                        usePointStyle: true,
-                        pointStyle: 'rect'
+                        font: { size: 11, family: 'Inter' }
                     }
                 },
                 tooltip: {
@@ -188,7 +195,7 @@
                         label: function (context) {
                             const label = context.dataset.label || '';
                             const value = context.raw || 0;
-                            return ` ${label}: ₺${value.toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
+                            return ` ${label}: ${currencySymbol}${value.toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
                         }
                     }
                 }
@@ -197,22 +204,21 @@
                 x: {
                     stacked: true,
                     grid: { display: false },
-                    ticks: { color: getComputedStyle(document.documentElement).getPropertyValue('--text-muted') }
+                    ticks: { color: getComputedStyle(document.documentElement).getPropertyValue('--text-muted') || '#64748b' }
                 },
                 y: {
                     stacked: true,
                     beginAtZero: true,
-                    grid: { color: 'rgba(255,255,255,0.05)' },
+                    grid: { color: 'rgba(255,255,255,0.06)' },
                     ticks: {
-                        color: getComputedStyle(document.documentElement).getPropertyValue('--text-muted'),
-                        callback: function (value) { return '₺' + value.toLocaleString(); }
+                        color: getComputedStyle(document.documentElement).getPropertyValue('--text-muted') || '#64748b',
+                        callback: function (value) { return currencySymbol + value.toLocaleString(); }
                     }
                 }
             }
         }
     });
 
-    // Category breakdown chart
     const categoryData = {{ category_totals | tojson | safe }};
     const categoryLabels = Object.keys(categoryData);
     const categoryValues = categoryLabels.map(k => categoryData[k].total);
@@ -226,7 +232,8 @@
                 datasets: [{
                     data: categoryValues,
                     backgroundColor: categoryColors,
-                    borderWidth: 0
+                    borderWidth: 2,
+                    borderColor: 'var(--bg-card, #1e293b)'
                 }]
             },
             options: {
@@ -236,15 +243,15 @@
                     legend: {
                         position: 'right',
                         labels: {
-                            color: getComputedStyle(document.documentElement).getPropertyValue('--text-secondary'),
-                            padding: 15,
-                            font: { size: 12 }
+                            color: getComputedStyle(document.documentElement).getPropertyValue('--text-secondary') || '#94a3b8',
+                            padding: 12,
+                            font: { size: 12, family: 'Inter' }
                         }
                     },
                     tooltip: {
                         callbacks: {
                             label: function (context) {
-                                return ` ₺${context.raw.toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
+                                return ` ${currencySymbol}${context.raw.toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
                             }
                         }
                     }

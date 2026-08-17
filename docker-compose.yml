@@ -1,0 +1,29 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: subscription-tracker
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    environment:
+      - FLASK_ENV=production
+      - SECRET_KEY=${SECRET_KEY:-generate-a-secure-random-key}
+      - DATABASE_PATH=/app/data/subscriptions.db
+      - EXCHANGE_RATE_API_KEY=${EXCHANGE_RATE_API_KEY:-}
+      - RATELIMIT_DEFAULT=300/hour;2000/day
+    volumes:
+      - subtracker_data:/app/data
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000/api/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  subtracker_data:
+    name: subtracker_data

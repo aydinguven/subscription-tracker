@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+
+{% block title %}Settings - SubTracker{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1>Settings & Preferences</h1>
+        <p class="page-subtitle">Configure your base currency, notifications, and security</p>
+    </div>
+</div>
+
+<div class="settings-grid">
+    <!-- General Preferences -->
+    <div class="card">
+        <div class="card-header">
+            <h3><i data-lucide="sliders"></i> General Preferences</h3>
+        </div>
+        <div class="card-body">
+            <form method="POST" action="{{ url_for('settings.index') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                <div class="form-group">
+                    <label for="display_name">Display Name</label>
+                    <input type="text" class="form-control" id="display_name" name="display_name"
+                        value="{{ current_user.display_name or '' }}" placeholder="{{ current_user.username }}">
+                    <small class="form-hint">Shown in the sidebar and greetings.</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="primary_currency">Primary Base Currency</label>
+                    <select class="form-control" id="primary_currency" name="primary_currency" required>
+                        {% for code, label in currencies %}
+                        <option value="{{ code }}" {% if settings.primary_currency == code %}selected{% endif %}>
+                            {{ label }} ({{ code }})
+                        </option>
+                        {% endfor %}
+                    </select>
+                    <small class="form-hint">All dashboard statistics, charts, and yearly reports will convert to this base currency.</small>
+                </div>
+
+                <hr class="form-divider">
+
+                <div class="form-group">
+                    <label for="webhook_url">Webhook Notifications URL (Discord, Slack, or Generic)</label>
+                    <input type="url" class="form-control" id="webhook_url" name="webhook_url"
+                        value="{{ settings.webhook_url or '' }}" placeholder="https://discord.com/api/webhooks/...">
+                    <small class="form-hint">Sends automated alerts when subscriptions are approaching due date.</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="notify_days_before">Reminder Window</label>
+                    <select class="form-control" id="notify_days_before" name="notify_days_before">
+                        <option value="1" {% if settings.notify_days_before == 1 %}selected{% endif %}>1 day before due date</option>
+                        <option value="3" {% if settings.notify_days_before == 3 %}selected{% endif %}>3 days before due date</option>
+                        <option value="5" {% if settings.notify_days_before == 5 %}selected{% endif %}>5 days before due date</option>
+                        <option value="7" {% if settings.notify_days_before == 7 %}selected{% endif %}>7 days before due date</option>
+                    </select>
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary">
+                        <i data-lucide="save"></i> Save Preferences
+                    </button>
+                </div>
+            </form>
+
+            {% if settings.webhook_url %}
+            <form method="POST" action="{{ url_for('settings.test_webhook') }}" style="margin-top: 1rem;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn btn-secondary btn-sm">
+                    <i data-lucide="send"></i> Test Webhook Notification
+                </button>
+            </form>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Security & Password -->
+    <div class="card">
+        <div class="card-header">
+            <h3><i data-lucide="shield-lock"></i> Change Password</h3>
+        </div>
+        <div class="card-body">
+            <form method="POST" action="{{ url_for('settings.change_password') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                <div class="form-group">
+                    <label for="current_password">Current Password</label>
+                    <input type="password" class="form-control" id="current_password" name="current_password" required autocomplete="current-password">
+                </div>
+
+                <div class="form-group">
+                    <label for="new_password">New Password</label>
+                    <input type="password" class="form-control" id="new_password" name="new_password" required minlength="6" autocomplete="new-password">
+                </div>
+
+                <div class="form-group">
+                    <label for="confirm_password">Confirm New Password</label>
+                    <input type="password" class="form-control" id="confirm_password" name="confirm_password" required minlength="6" autocomplete="new-password">
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-secondary">
+                        <i data-lucide="key"></i> Update Password
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,8 +1,8 @@
+from datetime import date
 from flask import Blueprint, jsonify, request
 from flask_login import login_required, current_user
-from datetime import date
 from sqlalchemy import extract
-from app import db
+from app import db, csrf
 from app.models import Subscription, Payment, Category, Settings, PaymentMethod
 from app.services.currency import CurrencyService
 
@@ -31,14 +31,14 @@ def get_payments():
     """Get payments with optional filters."""
     year = request.args.get('year', type=int)
     subscription_id = request.args.get('subscription_id', type=int)
-    
+
     query = Payment.query.filter_by(user_id=current_user.id)
-    
+
     if year:
         query = query.filter(extract('year', Payment.paid_date) == year)
     if subscription_id:
         query = query.filter_by(subscription_id=subscription_id)
-    
+
     payments = query.order_by(Payment.paid_date.desc()).all()
     return jsonify([p.to_dict() for p in payments])
 
@@ -63,10 +63,11 @@ def get_payment_methods():
 @login_required
 def get_rates():
     """Get current exchange rates."""
-    rates = CurrencyService.get_rates()
+    rates = CurrencyService.get_rates(user_id=current_user.id)
     settings = Settings.get_settings(user_id=current_user.id)
     return jsonify({
         'rates': rates,
+        'primary_currency': settings.primary_currency,
         'updated_at': settings.rates_updated_at.isoformat() if settings.rates_updated_at else None
     })
 
@@ -75,10 +76,11 @@ def get_rates():
 @login_required
 def refresh_rates():
     """Force refresh exchange rates."""
-    rates = CurrencyService.get_rates(force_refresh=True)
+    rates = CurrencyService.get_rates(user_id=current_user.id, force_refresh=True)
     settings = Settings.get_settings(user_id=current_user.id)
     return jsonify({
         'rates': rates,
+        'primary_currency': settings.primary_currency,
         'updated_at': settings.rates_updated_at.isoformat() if settings.rates_updated_at else None,
         'message': 'Rates refreshed successfully'
     })
@@ -87,18 +89,22 @@ def refresh_rates():
 @bp.route('/stats')
 @login_required
 def get_stats():
-    """Get dashboard statistics."""
-    rates = CurrencyService.get_rates()
+    """Get dashboard statistics in primary currency."""
+    settings = Settings.get_settings(user_id=current_user.id)
+    primary_currency = settings.primary_currency or 'TRY'
+    rates = CurrencyService.get_rates(user_id=current_user.id)
     today = date.today()
-    
-    # Active subscriptions for current user
+
     active_subs = Subscription.query.filter_by(user_id=current_user.id, is_active=True).all()
-    
-    # Monthly total
-    monthly_total = 0
-    for sub in active_subs:
-        monthly_total += CurrencyService.convert_to_primary(sub.monthly_amount, sub.currency, rates)
-    
+
+    # Monthly total in primary currency
+    monthly_total = sum(
+        CurrencyService.convert_to_primary(
+            sub.monthly_amount, sub.currency, rates=rates, primary_currency=primary_currency
+        )
+        for sub in active_subs
+    )
+
     # Yearly total from payments
     current_year = today.year
     yearly_payments = Payment.query.filter(
@@ -106,10 +112,12 @@ def get_stats():
         extract('year', Payment.paid_date) == current_year
     ).all()
     yearly_total = sum(
-        CurrencyService.convert_to_primary(p.amount, p.currency, rates)
+        CurrencyService.convert_to_primary(
+            p.amount, p.currency, rates=rates, primary_currency=primary_currency
+        )
         for p in yearly_payments
     )
-    
+
     # Monthly spending chart data (last 12 months)
     monthly_spending = []
     for i in range(11, -1, -1):
@@ -118,25 +126,29 @@ def get_stats():
         while month <= 0:
             month += 12
             year -= 1
-        
+
         payments = Payment.query.filter(
             Payment.user_id == current_user.id,
             extract('year', Payment.paid_date) == year,
             extract('month', Payment.paid_date) == month
         ).all()
-        
+
         total = sum(
-            CurrencyService.convert_to_primary(p.amount, p.currency, rates)
+            CurrencyService.convert_to_primary(
+                p.amount, p.currency, rates=rates, primary_currency=primary_currency
+            )
             for p in payments
         )
-        
+
         monthly_spending.append({
             'month': f"{year}-{month:02d}",
             'total': round(total, 2)
         })
-    
+
     return jsonify({
         'active_count': len(active_subs),
+        'primary_currency': primary_currency,
+        'currency_symbol': CurrencyService.get_symbol(primary_currency),
         'monthly_total': round(monthly_total, 2),
         'yearly_total': round(yearly_total, 2),
         'monthly_spending': monthly_spending,
@@ -146,9 +158,8 @@ def get_stats():
 
 @bp.route('/health')
 def health():
-    """Health check endpoint for load balancers and monitoring."""
+    """Health check endpoint for container health probes."""
     try:
-        # Verify database connection
         db.session.execute(db.text('SELECT 1'))
         return jsonify({
             'status': 'healthy',

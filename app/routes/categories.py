@@ -19,21 +19,25 @@ def index():
 def add():
     """Add a new category."""
     if request.method == 'POST':
-        name = request.form.get('name')
-        color = request.form.get('color', '#6b7280')
-        icon = request.form.get('icon', 'box')
-        
+        name = request.form.get('name', '').strip()
+        color = request.form.get('color', '#6b7280').strip()
+        icon = request.form.get('icon', 'box').strip()
+
+        if not name:
+            flash('Category name is required', 'error')
+            return redirect(url_for('categories.add'))
+
         # Check for duplicate within user's categories
         if Category.query.filter_by(user_id=current_user.id, name=name).first():
             flash(f'Category "{name}" already exists!', 'error')
             return redirect(url_for('categories.add'))
-        
+
         category = Category(user_id=current_user.id, name=name, color=color, icon=icon)
         db.session.add(category)
         db.session.commit()
         flash(f'Category "{name}" added!', 'success')
         return redirect(url_for('categories.index'))
-    
+
     return render_template('category_form.html', category=None, action='Add')
 
 
@@ -42,30 +46,48 @@ def add():
 def edit(id):
     """Edit a category."""
     category = Category.query.filter_by(id=id, user_id=current_user.id).first_or_404()
-    
+
     if request.method == 'POST':
-        category.name = request.form.get('name')
-        category.color = request.form.get('color', '#6b7280')
-        category.icon = request.form.get('icon', 'box')
-        
+        name = request.form.get('name', '').strip()
+        color = request.form.get('color', '#6b7280').strip()
+        icon = request.form.get('icon', 'box').strip()
+
+        if not name:
+            flash('Category name is required', 'error')
+            return redirect(url_for('categories.edit', id=id))
+
+        # Check for duplicate name if changed
+        existing = Category.query.filter(
+            Category.user_id == current_user.id,
+            Category.name == name,
+            Category.id != id
+        ).first()
+        if existing:
+            flash(f'Category "{name}" already exists!', 'error')
+            return redirect(url_for('categories.edit', id=id))
+
+        category.name = name
+        category.color = color
+        category.icon = icon
+
         db.session.commit()
         flash(f'Category "{category.name}" updated!', 'success')
         return redirect(url_for('categories.index'))
-    
+
     return render_template('category_form.html', category=category, action='Edit')
 
 
 @bp.route('/delete/<int:id>', methods=['POST'])
 @login_required
 def delete(id):
-    """Delete a category."""
+    """Delete a category and unlink subscriptions."""
     category = Category.query.filter_by(id=id, user_id=current_user.id).first_or_404()
     name = category.name
-    
+
     # Unlink subscriptions from this category
     for sub in category.subscriptions:
         sub.category_id = None
-    
+
     db.session.delete(category)
     db.session.commit()
     flash(f'Category "{name}" deleted!', 'success')

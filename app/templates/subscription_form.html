@@ -1,34 +1,38 @@
 {% extends "base.html" %}
 
-{% block title %}{{ action }} Subscription - Subscription Tracker{% endblock %}
+{% block title %}{{ action }} Subscription - SubTracker{% endblock %}
 
 {% block content %}
 <a href="{{ url_for('subscriptions.index') }}" class="back-link">
     <i data-lucide="arrow-left"></i>
-    Back to Subscriptions
+    <span>Back to Subscriptions</span>
 </a>
 
 <div class="page-header">
-    <h1>{{ action }} Subscription</h1>
+    <div>
+        <h1>{{ action }} Subscription</h1>
+        <p class="page-subtitle">Add or modify recurring bill details</p>
+    </div>
 </div>
 
 <div class="card form-card">
     <div class="card-body">
         <form method="POST" class="form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
             <div class="form-grid">
                 <div class="form-group">
-                    <label for="name">Name *</label>
-                    <input type="text" id="name" name="name" required
-                        value="{{ subscription.name if subscription else '' }}" placeholder="e.g., Netflix">
+                    <label for="name">Service Name *</label>
+                    <input type="text" id="name" name="name" required class="form-control"
+                        value="{{ subscription.name if subscription else '' }}" placeholder="e.g. Netflix, Spotify, AWS">
                 </div>
 
                 <div class="form-group">
                     <label for="category_id">Category</label>
-                    <select id="category_id" name="category_id">
+                    <select id="category_id" name="category_id" class="form-control">
                         <option value="">No Category</option>
                         {% for cat in categories %}
-                        <option value="{{ cat.id }}" {% if subscription and subscription.category_id==cat.id
-                            %}selected{% endif %}>
+                        <option value="{{ cat.id }}" {% if subscription and subscription.category_id==cat.id %}selected{% endif %}>
                             {{ cat.name }}
                         </option>
                         {% endfor %}
@@ -37,47 +41,48 @@
 
                 <div class="form-group">
                     <label for="amount">Amount *</label>
-                    <input type="number" id="amount" name="amount" step="0.01" min="0" required
+                    <input type="number" id="amount" name="amount" step="0.01" min="0" required class="form-control"
                         value="{{ subscription.amount if subscription else '' }}" placeholder="0.00">
                 </div>
 
                 <div class="form-group">
                     <label for="currency">Currency</label>
-                    <select id="currency" name="currency">
-                        <option value="TRY" {% if not subscription or subscription.currency=='TRY' %}selected{% endif
-                            %}>TRY (₺)</option>
-                        <option value="USD" {% if subscription and subscription.currency=='USD' %}selected{% endif %}>
-                            USD ($)</option>
-                        <option value="EUR" {% if subscription and subscription.currency=='EUR' %}selected{% endif %}>
-                            EUR (€)</option>
+                    <select id="currency" name="currency" class="form-control">
+                        {% set curr_val = subscription.currency if subscription else primary_currency %}
+                        <option value="TRY" {% if curr_val=='TRY' %}selected{% endif %}>TRY (₺)</option>
+                        <option value="USD" {% if curr_val=='USD' %}selected{% endif %}>USD ($)</option>
+                        <option value="EUR" {% if curr_val=='EUR' %}selected{% endif %}>EUR (€)</option>
+                        <option value="GBP" {% if curr_val=='GBP' %}selected{% endif %}>GBP (£)</option>
+                        <option value="CAD" {% if curr_val=='CAD' %}selected{% endif %}>CAD (CA$)</option>
+                        <option value="AUD" {% if curr_val=='AUD' %}selected{% endif %}>AUD (AU$)</option>
+                        <option value="JPY" {% if curr_val=='JPY' %}selected{% endif %}>JPY (¥)</option>
+                        <option value="CHF" {% if curr_val=='CHF' %}selected{% endif %}>CHF (CHF)</option>
                     </select>
                 </div>
 
                 <div class="form-group">
                     <label for="billing_cycle">Billing Cycle</label>
-                    <select id="billing_cycle" name="billing_cycle">
-                        <option value="monthly" {% if not subscription or subscription.billing_cycle=='monthly'
-                            %}selected{% endif %}>Monthly</option>
-                        <option value="yearly" {% if subscription and subscription.billing_cycle=='yearly' %}selected{%
-                            endif %}>Yearly</option>
-                        <option value="weekly" {% if subscription and subscription.billing_cycle=='weekly' %}selected{%
-                            endif %}>Weekly</option>
+                    <select id="billing_cycle" name="billing_cycle" class="form-control">
+                        {% for code, label in billing_cycles %}
+                        <option value="{{ code }}" {% if (subscription and subscription.billing_cycle==code) or (not subscription and code=='monthly') %}selected{% endif %}>
+                            {{ label }}
+                        </option>
+                        {% endfor %}
                     </select>
                 </div>
 
                 <div class="form-group">
                     <label for="next_due_date">Next Due Date</label>
-                    <input type="date" id="next_due_date" name="next_due_date"
+                    <input type="date" id="next_due_date" name="next_due_date" class="form-control"
                         value="{{ subscription.next_due_date.isoformat() if subscription and subscription.next_due_date else '' }}">
                 </div>
 
                 <div class="form-group">
                     <label for="payment_method_id">Payment Method</label>
-                    <select id="payment_method_id" name="payment_method_id">
+                    <select id="payment_method_id" name="payment_method_id" class="form-control">
                         <option value="">No Payment Method</option>
                         {% for pm in payment_methods %}
-                        <option value="{{ pm.id }}" {% if subscription and subscription.payment_method_id==pm.id
-                            %}selected{% endif %}>
+                        <option value="{{ pm.id }}" {% if subscription and subscription.payment_method_id==pm.id %}selected{% endif %}>
                             {{ pm.display_name }}
                         </option>
                         {% endfor %}
@@ -85,36 +90,38 @@
                 </div>
 
                 <div class="form-group">
-                    <label for="url">Website URL</label>
-                    <input type="text" id="url" name="url" value="{{ subscription.url if subscription else '' }}"
-                        placeholder="netflix.com or https://netflix.com">
+                    <label for="url">Website URL (for Auto Favicon)</label>
+                    <input type="text" id="url" name="url" class="form-control"
+                        value="{{ subscription.url if subscription else '' }}"
+                        placeholder="e.g. netflix.com">
+                </div>
+
+                <div class="form-group">
+                    <label for="tags">Tags (Comma-separated)</label>
+                    <input type="text" id="tags" name="tags" class="form-control"
+                        value="{{ subscription.tags if subscription and subscription.tags else '' }}"
+                        placeholder="e.g. personal, entertainment, work">
                 </div>
 
                 <div class="form-group full-width">
-                    <label>Icon</label>
+                    <label>Fallback Icon</label>
                     <div class="icon-picker" id="iconPicker">
                         {% set icons = ['receipt', 'tv', 'film', 'music', 'gamepad-2', 'cloud', 'code', 'server',
                         'database', 'shield', 'zap', 'wifi', 'phone', 'mail', 'book', 'newspaper', 'briefcase', 'home',
                         'car', 'plane', 'shopping-cart', 'heart', 'star', 'box'] %}
                         {% for icon in icons %}
-                        <label
-                            class="icon-option {% if (subscription and subscription.icon == icon) or (not subscription and icon == 'receipt') %}selected{% endif %}">
-                            <input type="radio" name="icon" value="{{ icon }}" {% if (subscription and
-                                subscription.icon==icon) or (not subscription and icon=='receipt' ) %}checked{% endif
-                                %}>
+                        <label class="icon-option {% if (subscription and subscription.icon == icon) or (not subscription and icon == 'receipt') %}selected{% endif %}">
+                            <input type="radio" name="icon" value="{{ icon }}" {% if (subscription and subscription.icon==icon) or (not subscription and icon=='receipt') %}checked{% endif %}>
                             <i data-lucide="{{ icon }}"></i>
                         </label>
                         {% endfor %}
                     </div>
-                    <input type="hidden" id="icon" name="icon"
-                        value="{{ subscription.icon if subscription else 'receipt' }}">
                 </div>
 
                 <div class="form-group checkbox-group">
                     <label class="checkbox-label">
-                        <input type="checkbox" name="is_variable" {% if subscription and subscription.is_variable
-                            %}checked{% endif %}>
-                        <span>Variable Amount (e.g., utilities)</span>
+                        <input type="checkbox" name="is_variable" {% if subscription and subscription.is_variable %}checked{% endif %}>
+                        <span>Variable / Fluctuating Amount (e.g. electricity, gas)</span>
                     </label>
                 </div>
 
@@ -122,41 +129,37 @@
                 <div class="form-group checkbox-group">
                     <label class="checkbox-label">
                         <input type="checkbox" name="is_active" {% if subscription.is_active %}checked{% endif %}>
-                        <span>Active</span>
+                        <span>Subscription Active</span>
                     </label>
                 </div>
                 {% endif %}
 
                 <div class="form-group full-width">
                     <label for="notes">Notes</label>
-                    <textarea id="notes" name="notes"
-                        placeholder="Additional notes...">{{ subscription.notes if subscription else '' }}</textarea>
+                    <textarea id="notes" name="notes" class="form-control" rows="3"
+                        placeholder="Plan tier, account ID, cancellation policy notes...">{{ subscription.notes if subscription else '' }}</textarea>
                 </div>
             </div>
 
             <div class="form-actions">
                 <button type="submit" class="btn btn-primary">
                     <i data-lucide="save"></i>
-                    {{ action }} Subscription
+                    <span>{{ action }} Subscription</span>
                 </button>
                 <a href="{{ url_for('subscriptions.index') }}" class="btn btn-secondary">Cancel</a>
             </div>
         </form>
     </div>
 </div>
+{% endblock %}
 
+{% block scripts %}
 <script>
-    // Icon picker functionality
     document.querySelectorAll('.icon-option input').forEach(input => {
         input.addEventListener('change', function () {
-            // Remove selected class from all
             document.querySelectorAll('.icon-option').forEach(opt => opt.classList.remove('selected'));
-            // Add selected class to parent
             this.parentElement.classList.add('selected');
         });
     });
-
-    // Reinitialize Lucide icons for the picker
-    lucide.createIcons();
 </script>
 {% endblock %}

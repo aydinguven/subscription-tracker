@@ -1,21 +1,33 @@
 {% extends "base.html" %}
 
-{% block title %}Payments - Subscription Tracker{% endblock %}
+{% block title %}Payments - SubTracker{% endblock %}
 
 {% block content %}
 <div class="page-header">
-    <h1>Payments</h1>
+    <div>
+        <h1>Payment History</h1>
+        <p class="page-subtitle">Logs of all completed subscription charges and utility bills</p>
+    </div>
     <div class="header-actions">
+        <a href="{{ url_for('payments.yearly_report') }}" class="btn btn-secondary">
+            <i data-lucide="bar-chart-3"></i>
+            <span>Yearly Breakdown</span>
+        </a>
         <a href="{{ url_for('payments.add') }}" class="btn btn-primary">
             <i data-lucide="plus"></i>
-            Add Payment
+            <span>Record Payment</span>
         </a>
     </div>
 </div>
 
-<!-- Filters -->
+<!-- Filters Bar -->
 <div class="filters-bar">
     <form class="filters-form" method="GET" action="{{ url_for('payments.index') }}">
+        <div class="search-input-wrapper">
+            <i data-lucide="search" class="search-icon"></i>
+            <input type="text" name="q" value="{{ search_query or '' }}" placeholder="Search payments or notes..." class="search-input">
+        </div>
+
         <div class="filter-group">
             <label>Year</label>
             <select name="year" onchange="this.form.submit()">
@@ -24,40 +36,48 @@
                 {% endfor %}
             </select>
         </div>
+
         <div class="filter-group">
             <label>Subscription</label>
             <select name="subscription" onchange="this.form.submit()">
                 <option value="">All Subscriptions</option>
                 {% for sub in subscriptions %}
-                <option value="{{ sub.id }}" {% if filter_subscription==sub.id %}selected{% endif %}>{{ sub.name }}
-                </option>
+                <option value="{{ sub.id }}" {% if filter_subscription==sub.id %}selected{% endif %}>{{ sub.name }}</option>
                 {% endfor %}
             </select>
         </div>
+
         <div class="filter-group">
             <label>Currency</label>
             <select name="currency" onchange="this.form.submit()">
-                <option value="all" {% if filter_currency=='all' %}selected{% endif %}>All</option>
+                <option value="all" {% if filter_currency=='all' %}selected{% endif %}>All Currencies</option>
                 <option value="TRY" {% if filter_currency=='TRY' %}selected{% endif %}>TRY (₺)</option>
                 <option value="USD" {% if filter_currency=='USD' %}selected{% endif %}>USD ($)</option>
                 <option value="EUR" {% if filter_currency=='EUR' %}selected{% endif %}>EUR (€)</option>
+                <option value="GBP" {% if filter_currency=='GBP' %}selected{% endif %}>GBP (£)</option>
             </select>
         </div>
     </form>
 </div>
 
-<!-- Totals Bar -->
+<!-- Summary Cards Bar -->
 <div class="totals-bar">
+    <div class="total-item grand-total">
+        <span class="total-label">Total Spent ({{ primary_currency }})</span>
+        <span class="total-value">{{ format_currency(grand_total, primary_currency) }}</span>
+    </div>
+    {% if total_savings > 0 %}
+    <div class="total-item">
+        <span class="total-label">Discounts Saved</span>
+        <span class="total-value" style="color: var(--success);">{{ format_currency(total_savings, primary_currency) }}</span>
+    </div>
+    {% endif %}
     {% for curr, total in currency_totals.items() %}
     <div class="total-item">
         <span class="total-label">{{ curr }} Total</span>
-        <span class="total-value">{{ {'TRY': '₺', 'USD': '$', 'EUR': '€'}[curr] }}{{ "%.2f"|format(total) }}</span>
+        <span class="total-value">{{ format_currency(total, curr) }}</span>
     </div>
     {% endfor %}
-    <div class="total-item grand-total">
-        <span class="total-label">Grand Total (TRY)</span>
-        <span class="total-value">₺{{ "%.2f"|format(grand_total) }}</span>
-    </div>
 </div>
 
 <!-- Desktop Table View -->
@@ -66,13 +86,13 @@
         <table class="table">
             <thead>
                 <tr>
-                    <th>Date</th>
+                    <th>Date Paid</th>
                     <th>Subscription</th>
-                    <th>Amount</th>
-                    <th>Discount</th>
+                    <th>Amount Paid</th>
+                    <th>Discount / Savings</th>
                     <th>Payment Method</th>
                     <th>Notes</th>
-                    <th>Actions</th>
+                    <th style="text-align: right;">Actions</th>
                 </tr>
             </thead>
             <tbody>
@@ -84,32 +104,28 @@
                         {% if payment.subscription %}
                         <div class="sub-name">
                             {% if payment.subscription.favicon_url %}
-                            <img src="{{ payment.subscription.favicon_url }}" alt="" class="sub-favicon"
-                                onerror="this.style.display='none'">
+                            <img src="{{ payment.subscription.favicon_url }}" alt="" class="sub-favicon" onerror="this.style.display='none'">
                             {% endif %}
-                            {{ payment.subscription.name }}
+                            <span>{{ payment.subscription.name }}</span>
                         </div>
                         {% else %}
-                        <span class="text-muted">Unknown</span>
+                        <span class="text-muted">Unlinked</span>
                         {% endif %}
                     </td>
                     <td>
-                        <span class="amount">
-                            {{ {'TRY': '₺', 'USD': '$', 'EUR': '€'}[payment.currency] }}{{ "%.2f"|format(payment.amount)
-                            }}
-                        </span>
-                        {% if payment.currency != 'TRY' %}
-                        <span class="amount-converted">
-                            ≈ ₺{{ "%.2f"|format(payment.amount * rates.get(payment.currency, 1)) }}
-                        </span>
-                        {% endif %}
+                        <div class="amount-cell">
+                            <span class="amount">{{ format_currency(payment.amount, payment.currency) }}</span>
+                            {% if payment.currency != primary_currency %}
+                            <span class="amount-converted">
+                                ≈ {{ format_currency(payment.amount * rates.get(payment.currency, 1), primary_currency) }}
+                            </span>
+                            {% endif %}
+                        </div>
                     </td>
                     <td>
                         {% if payment.discount > 0 %}
                         <span class="discount-badge">
-                            -{{ {'TRY': '₺', 'USD': '$', 'EUR': '€'}[payment.currency] }}{{
-                            "%.2f"|format(payment.discount) }}
-                            ({{ payment.discount_percent }}%)
+                            -{{ format_currency(payment.discount, payment.currency) }} ({{ payment.discount_percent }}%)
                         </span>
                         {% else %}
                         <span class="text-muted">—</span>
@@ -118,7 +134,7 @@
                     <td>
                         {% if payment.payment_method %}
                         <span class="payment-method-badge"
-                            style="background: {{ payment.payment_method.color }}20; color: {{ payment.payment_method.color }};">
+                            style="background: {{ payment.payment_method.color }}20; color: {{ payment.payment_method.color }}; border: 1px solid {{ payment.payment_method.color }}40;">
                             {{ payment.payment_method.display_name }}
                         </span>
                         {% else %}
@@ -127,15 +143,15 @@
                     </td>
                     <td>
                         {% if payment.notes %}
-                        <span class="notes-preview" title="{{ payment.notes }}">{{ payment.notes[:30] }}{% if
-                            payment.notes|length > 30 %}...{% endif %}</span>
+                        <span class="notes-preview" title="{{ payment.notes }}">{{ payment.notes }}</span>
                         {% else %}
                         <span class="text-muted">—</span>
                         {% endif %}
                     </td>
-                    <td class="actions">
-                        <form action="{{ url_for('payments.delete', id=payment.id) }}" method="POST"
-                            style="display:inline;" hx-boost="false" onsubmit="return confirmDelete(this, 'Payment');">
+                    <td class="actions" style="text-align: right;">
+                        <form action="{{ url_for('payments.delete', id=payment.id) }}" method="POST" style="display:inline;"
+                            onsubmit="return confirm('Are you sure you want to delete this payment record?');">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <button type="submit" class="btn btn-sm btn-danger" title="Delete">
                                 <i data-lucide="trash-2"></i>
                             </button>
@@ -147,7 +163,7 @@
                 <tr>
                     <td colspan="7" class="empty-table">
                         <i data-lucide="credit-card"></i>
-                        <p>No payments found for this period</p>
+                        <p>No payments recorded for this period</p>
                         <a href="{{ url_for('payments.add') }}" class="btn btn-primary">Record a Payment</a>
                     </td>
                 </tr>
@@ -164,18 +180,13 @@
     <div class="mobile-card">
         <div class="mobile-card-header">
             <div class="mobile-card-title">
-                {% if payment.subscription %}
-                {% if payment.subscription.favicon_url %}
-                <img src="{{ payment.subscription.favicon_url }}" alt="" class="sub-favicon"
-                    onerror="this.style.display='none'">
+                {% if payment.subscription and payment.subscription.favicon_url %}
+                <img src="{{ payment.subscription.favicon_url }}" alt="" class="sub-favicon" onerror="this.style.display='none'">
                 {% endif %}
-                <span>{{ payment.subscription.name }}</span>
-                {% else %}
-                <span>Unknown</span>
-                {% endif %}
+                <span>{{ payment.subscription.name if payment.subscription else 'General Payment' }}</span>
             </div>
             <span class="mobile-card-amount">
-                {{ {'TRY': '₺', 'USD': '$', 'EUR': '€'}[payment.currency] }}{{ "%.2f"|format(payment.amount) }}
+                {{ format_currency(payment.amount, payment.currency) }}
             </span>
         </div>
         <div class="mobile-card-meta">
@@ -184,15 +195,15 @@
             <span class="discount-badge">-{{ payment.discount_percent }}%</span>
             {% endif %}
             {% if payment.payment_method %}
-            <span class="payment-method-badge"
-                style="background: {{ payment.payment_method.color }}20; color: {{ payment.payment_method.color }};">
+            <span class="payment-method-badge" style="background: {{ payment.payment_method.color }}20; color: {{ payment.payment_method.color }};">
                 {{ payment.payment_method.name }}
             </span>
             {% endif %}
         </div>
         <div class="mobile-card-actions">
             <form action="{{ url_for('payments.delete', id=payment.id) }}" method="POST" style="display:inline;"
-                hx-boost="false" onsubmit="return confirmDelete(this, 'Payment');">
+                onsubmit="return confirm('Delete payment?');">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <button type="submit" class="btn btn-sm btn-danger">
                     <i data-lucide="trash-2"></i> Delete
                 </button>

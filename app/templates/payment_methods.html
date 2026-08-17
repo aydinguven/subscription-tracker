@@ -1,14 +1,17 @@
 {% extends "base.html" %}
 
-{% block title %}Payment Methods - Subscription Tracker{% endblock %}
+{% block title %}Payment Methods - SubTracker{% endblock %}
 
 {% block content %}
 <div class="page-header">
-    <h1>Payment Methods</h1>
+    <div>
+        <h1>Payment Methods</h1>
+        <p class="page-subtitle">Manage payment accounts and cards</p>
+    </div>
     <div class="header-actions">
         <a href="{{ url_for('payment_methods.add') }}" class="btn btn-primary">
             <i data-lucide="plus"></i>
-            Add Method
+            <span>Add Method</span>
         </a>
     </div>
 </div>
@@ -19,11 +22,11 @@
             <thead>
                 <tr>
                     <th>Icon</th>
-                    <th>Name</th>
+                    <th>Account Name</th>
                     <th>Type</th>
                     <th>Identifier</th>
                     <th>Default</th>
-                    <th>Actions</th>
+                    <th style="text-align: right;">Actions</th>
                 </tr>
             </thead>
             <tbody>
@@ -38,7 +41,9 @@
                     <td><strong>{{ method.name }}</strong></td>
                     <td>
                         {% for type_id, type_name, _ in method_types %}
-                        {% if type_id == method.method_type %}{{ type_name }}{% endif %}
+                        {% if type_id == method.method_type %}
+                        <span class="cycle-pill">{{ type_name }}</span>
+                        {% endif %}
                         {% endfor %}
                     </td>
                     <td>{{ method.identifier or '—' }}</td>
@@ -46,20 +51,19 @@
                         {% if method.is_default %}
                         <span class="status-badge status-active">Default</span>
                         {% else %}
-                        <form action="{{ url_for('payment_methods.set_default', id=method.id) }}" method="POST"
-                            style="display:inline;">
+                        <form action="{{ url_for('payment_methods.set_default', id=method.id) }}" method="POST" style="display:inline;">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <button type="submit" class="btn btn-sm btn-secondary">Set Default</button>
                         </form>
                         {% endif %}
                     </td>
-                    <td class="actions">
-                        <a href="{{ url_for('payment_methods.edit', id=method.id) }}" class="btn btn-sm btn-secondary"
-                            title="Edit">
+                    <td class="actions" style="text-align: right;">
+                        <a href="{{ url_for('payment_methods.edit', id=method.id) }}" class="btn btn-sm btn-secondary" title="Edit">
                             <i data-lucide="edit-2"></i>
                         </a>
-                        <form action="{{ url_for('payment_methods.delete', id=method.id) }}" method="POST"
-                            style="display:inline;" hx-boost="false"
-                            onsubmit="return confirmDelete(this, 'Payment Method');">
+                        <form action="{{ url_for('payment_methods.delete', id=method.id) }}" method="POST" style="display:inline;"
+                            onsubmit="return confirm('Are you sure you want to delete this payment method?');">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <button type="submit" class="btn btn-sm btn-danger" title="Delete">
                                 <i data-lucide="trash-2"></i>
                             </button>
@@ -71,7 +75,7 @@
                 <tr>
                     <td colspan="6" class="empty-table">
                         <i data-lucide="wallet"></i>
-                        <p>No payment methods yet</p>
+                        <p>No payment methods found</p>
                         <a href="{{ url_for('payment_methods.add') }}" class="btn btn-primary">Add Payment Method</a>
                     </td>
                 </tr>

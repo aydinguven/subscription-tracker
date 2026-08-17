@@ -1,74 +1,45 @@
 {% extends "base.html" %}
 
-{% block title %}Import Data - Subscription Tracker{% endblock %}
+{% block title %}Import Data - SubTracker{% endblock %}
 
 {% block content %}
 <a href="{{ url_for('dashboard.index') }}" class="back-link">
     <i data-lucide="arrow-left"></i>
-    Back to Dashboard
+    <span>Back to Dashboard</span>
 </a>
 
 <div class="page-header">
-    <h1>Import Data</h1>
+    <div>
+        <h1>Import Data</h1>
+        <p class="page-subtitle">Restore or import subscriptions from JSON, CSV, or Excel (.xlsx) files</p>
+    </div>
 </div>
 
 <div class="card form-card">
     <div class="card-body">
-        <p class="form-intro">Upload a JSON file that was previously exported from Subscription Tracker to restore your
-            data.</p>
-
         <form method="POST" enctype="multipart/form-data" class="form" hx-boost="false">
-            <div class="form-group">
-                <label for="file">Select File *</label>
-                <input type="file" id="file" name="file" accept=".json" required class="file-input">
-            </div>
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
             <div class="form-group">
-                <label>Import Options</label>
-                <div class="checkbox-list">
-                    <label class="checkbox-label">
-                        <input type="checkbox" name="categories" checked>
-                        <span>Categories</span>
-                    </label>
-                    <label class="checkbox-label">
-                        <input type="checkbox" name="payment_methods" checked>
-                        <span>Payment Methods</span>
-                    </label>
-                    <label class="checkbox-label">
-                        <input type="checkbox" name="subscriptions" checked>
-                        <span>Subscriptions</span>
-                    </label>
-                    <label class="checkbox-label">
-                        <input type="checkbox" name="payments" checked>
-                        <span>Payments</span>
-                    </label>
-                </div>
+                <label for="file">Select File (.json, .csv, .xlsx) *</label>
+                <input type="file" id="file" name="file" accept=".json,.csv,.xlsx" required class="form-control">
+                <small class="form-hint">Supports full JSON backup files, CSV subscription lists, or multi-sheet Excel files.</small>
             </div>
 
-            <div class="form-group">
+            <div class="form-group checkbox-group full-width">
                 <label class="checkbox-label">
                     <input type="checkbox" name="skip_existing" checked>
-                    <span>Skip existing items (don't update)</span>
+                    <span>Skip items that already exist with the same name</span>
                 </label>
             </div>
 
             <div class="form-actions">
                 <button type="submit" class="btn btn-primary">
                     <i data-lucide="upload"></i>
-                    Import Data
+                    <span>Start Import</span>
                 </button>
             </div>
         </form>
-    </div>
-</div>
-
-<div class="card card-danger">
-    <div class="card-header">
-        <h3><i data-lucide="alert-triangle"></i> Warning</h3>
-    </div>
-    <div class="card-body">
-        <p>Importing data may add or update existing items. Make sure to export your current data first if you want to
-            keep a backup.</p>
     </div>
 </div>
 {% endblock %}
