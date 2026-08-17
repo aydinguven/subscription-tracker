@@ -3,6 +3,7 @@ name: CI Pipeline
 on:
   push:
     branches: [ main, master ]
+    tags: [ 'v*' ]
   pull_request:
     branches: [ main, master ]
 
@@ -10,6 +11,8 @@ jobs:
   test:
     name: Run Pytest & Linting
     runs-on: ubuntu-latest
+    env:
+      PYTHONPATH: .
 
     steps:
       - name: Check out repository
@@ -28,7 +31,7 @@ jobs:
 
       - name: Run Test Suite
         run: |
-          pytest -v
+          python -m pytest -v
 
   docker:
     name: Build Docker Container
